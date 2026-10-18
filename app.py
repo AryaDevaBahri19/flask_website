@@ -9,10 +9,11 @@ app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = ''
 app.config['MYSQL_DB'] = 'flask_login'
 mysql = MySQL(app)
-@app.route('/', methods=['GET', 'POST'])
-def home():
 
-    # REGISTER
+
+@app.route('/', methods=['GET', 'POST'])
+def login():
+
     if request.form.get('action') == 'register':
         username = request.form['username']
         password = request.form['password']
@@ -34,7 +35,6 @@ def home():
 
         cur.close()
 
-    # LOGIN
     elif request.form.get('action') == 'login':
 
         username = request.form['username']
@@ -57,6 +57,10 @@ def home():
         cur.close()
     return render_template('index.html')
 
+
+@app.route('/home', methods=['GET', 'POST'])
+def home():
+    return render_template('home.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
