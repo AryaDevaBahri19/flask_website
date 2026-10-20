@@ -8,7 +8,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='home.css' ) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
 </head>
 
 <body>
@@ -37,33 +37,74 @@
     <div class="toast" id="toast" role="status"></div>
 
     <script>
-        const P = [
-            { id: 'bean', name: 'Bean si Beruang', price: 189000, desc: 'Beruang biru dengan topi tidur kecil.' },
-            { id: 'mochi', name: 'Mochi si Kelinci', price: 169000, desc: 'Telinga panjang, bulu super lembut.' },
-            { id: 'pickle', name: 'Pickle si Katak', price: 159000, desc: 'Katak biru muda bermata bulat besar.' },
-            { id: 'miso', name: 'Miso si Kucing', price: 175000, desc: 'Kucing biru tua yang suka dipeluk.' },
-            { id: 'boo', name: 'Boo si Hantu', price: 149000, desc: 'Hantu putih ramah, tidak menyeramkan.' },
-            { id: 'luna', name: 'Luna si Paus', price: 199000, desc: 'Paus kecil biru langit, empuk di semua sisi.' }
-        ];
+        const P = {{ produk | tojson }};
+
         const fmt = n => 'Rp ' + n.toLocaleString('id-ID');
         const $ = id => document.getElementById(id);
         let cart = [];
-        const toast = m => { const t = $('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 1800) };
+
+        const toast = m => {
+            const t = $('toast');
+            t.textContent = m;
+            t.classList.add('on');
+            clearTimeout(toast.t);
+            toast.t = setTimeout(() => t.classList.remove('on'), 1800);
+        };
+
         function render() {
             $('count').textContent = cart.reduce((a, i) => a + i.q, 0);
-            $('items').innerHTML = cart.length ? cart.map((i, k) => { const p = P.find(x => x.id === i.id); return `<div class="it"><div class="th"><img src="" alt="${p.name}"></div><div class="m">${p.name}<small>${fmt(p.price)}</small></div><div class="q"><button data-k="${k}" data-d="-1" aria-label="Kurangi">−</button>${i.q}<button data-k="${k}" data-d="1" aria-label="Tambah">+</button></div></div>` }).join('') : '<p class="empty">Keranjang masih kosong. Tambahkan boneka untuk mulai.</p>';
+            $('items').innerHTML = cart.length
+                ? cart.map((i, k) => {
+                    const p = P.find(x => x.id === i.id);
+                    return `<div class="it">
+                        <div class="th"><img src="${p.img}" alt="${p.name}"></div>
+                        <div class="m">${p.name}<small>${fmt(p.price)}</small></div>
+                        <div class="q">
+                            <button data-k="${k}" data-d="-1" aria-label="Kurangi">−</button>${i.q}<button data-k="${k}" data-d="1" aria-label="Tambah">+</button>
+                        </div>
+                    </div>`;
+                }).join('')
+                : '<p class="empty">Keranjang masih kosong. Tambahkan boneka untuk mulai.</p>';
             $('total').textContent = fmt(cart.reduce((a, i) => a + P.find(x => x.id === i.id).price * i.q, 0));
         }
-        $('grid').innerHTML = P.map(p => `<article class="card"><div class="pic"><img src="" alt="${p.name}"></div><div class="body"><h3>${p.name}</h3><p class="desc">${p.desc}</p><div class="price">${fmt(p.price)}</div><button class="add" data-id="${p.id}">Tambah ke keranjang</button></div></article>`).join('');
+
+        $('grid').innerHTML = P.length
+            ? P.map(p => `<article class="card">
+                <div class="pic"><img src="${p.img}" alt="${p.name}"></div>
+                <div class="body">
+                    <h3>${p.name}</h3>
+                    <p class="desc">${p.desc || ''}</p>
+                    <div class="price">${fmt(p.price)}</div>
+                    <button class="add" data-id="${p.id}">Tambah ke keranjang</button>
+                </div>
+            </article>`).join('')
+            : '<p class="empty">Belum ada produk.</p>';
+
         $('grid').onclick = e => {
-            const b = e.target.closest('.add'); if (!b) return;
-            const f = cart.find(i => i.id === b.dataset.id); f ? f.q++ : cart.push({ id: b.dataset.id, q: 1 }); render(); toast('Ditambahkan ke keranjang')
+            const b = e.target.closest('.add');
+            if (!b) return;
+            const f = cart.find(i => i.id === b.dataset.id);
+            f ? f.q++ : cart.push({ id: b.dataset.id, q: 1 });
+            render();
+            toast('Ditambahkan ke keranjang');
         };
-        $('items').onclick = e => { const b = e.target.closest('button'); if (!b) return; const i = cart[+b.dataset.k]; i.q += +b.dataset.d; if (i.q < 1) cart.splice(+b.dataset.k, 1); render() };
+
+        $('items').onclick = e => {
+            const b = e.target.closest('button');
+            if (!b) return;
+            const i = cart[+b.dataset.k];
+            i.q += +b.dataset.d;
+            if (i.q < 1) cart.splice(+b.dataset.k, 1);
+            render();
+        };
+
         const open = v => document.body.classList.toggle('open', v);
-        $('openCart').onclick = () => open(true); $('closeCart').onclick = () => open(false); $('shade').onclick = () => open(false);
+        $('openCart').onclick = () => open(true);
+        $('closeCart').onclick = () => open(false);
+        $('shade').onclick = () => open(false);
         $('checkout').onclick = () => toast(cart.length ? 'Ini hanya contoh, tidak ada pesanan yang dibuat' : 'Tambahkan boneka dulu');
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') open(false) });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') open(false); });
+
         render();
     </script>
 </body>

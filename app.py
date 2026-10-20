@@ -64,9 +64,24 @@ def login():
     return render_template('index.html')
 
 
-@app.route('/home', methods=['GET', 'POST'])
+@app.route('/home')
 def home():
-    return render_template('home.html')
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id, nama, deskripsi, harga, gambar FROM produk")
+    rows = cur.fetchall()
+    cur.close()
+
+    produk = [
+        {
+            'id': str(r[0]),
+            'name': r[1],
+            'desc': r[2],
+            'price': r[3],
+            'img': url_for('static', filename='img/' + r[4]) if r[4] else ''
+        }
+        for r in rows
+    ]
+    return render_template('home.html', produk=produk)
 
 if __name__ == '__main__':
     app.run(debug=True)
