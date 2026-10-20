@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ judul }} – Admin Squishly</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, sans-serif; background: #f3f8ff; color: #0b2447; }
+        .wrap { max-width: 520px; margin: 0 auto; padding: 20px; }
+        h1 { font-size: 26px; margin: 0 0 16px; }
+        form { background: #fff; border: 2px solid #d6e5fb; border-radius: 16px; padding: 20px; display: grid; gap: 14px; }
+        label { font-weight: 700; font-size: 14px; display: grid; gap: 6px; }
+        input, textarea { font: inherit; padding: 10px 12px; border: 2px solid #d6e5fb; border-radius: 10px; width: 100%; }
+        input:focus, textarea:focus { outline: 0; border-color: #1e6fff; }
+        small { color: #5b6f93; font-weight: 400; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .btns { display: flex; gap: 10px; }
+        .btn { background: #1e6fff; color: #fff; border: 0; border-radius: 10px; padding: 11px 18px; font-weight: 700; text-decoration: none; cursor: pointer; font-size: 15px; }
+        .btn.gray { background: #5b6f93; }
+        .flash { padding: 12px 16px; border-radius: 10px; margin-bottom: 14px; font-weight: 600; }
+        .flash.danger { background: #fde0e3; color: #8c1d2a; }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <h1>{{ judul }}</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for kategori, pesan in messages %}
+        <div class="flash {{ kategori }}">{{ pesan }}</div>
+        {% endfor %}
+        {% endwith %}
+
+        <form method="post">
+            <label>Nama produk
+                <input type="text" name="nama" value="{{ p[1] if p else '' }}" required maxlength="100">
+            </label>
+
+            <label>Deskripsi
+                <textarea name="deskripsi" rows="3" maxlength="255">{{ p[2] if p and p[2] else '' }}</textarea>
+            </label>
+
+            <div class="row">
+                <label>Harga (Rp)
+                    <input type="number" name="harga" min="0" value="{{ p[3] if p else '' }}" required>
+                </label>
+                <label>Stok
+                    <input type="number" name="stok" min="0" value="{{ p[5] if p else 0 }}" required>
+                </label>
+            </div>
+
+            <label>Nama file gambar
+                <input type="text" name="gambar" value="{{ p[4] if p and p[4] else '' }}" placeholder="contoh: bean.jpg">
+                <small>File harus ada di folder static/img/</small>
+            </label>
+
+            <div class="btns">
+                <button class="btn" type="submit">Simpan</button>
+                <a class="btn gray" href="{{ url_for('admin') }}">Batal</a>
+            </div>
+        </form>
+    </div>
+</body>
+
+</html>
