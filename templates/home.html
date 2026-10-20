@@ -38,39 +38,23 @@
 
     <script>
         const P = [
-            { id: 'bean', name: 'Bean si Beruang', price: 189000, desc: 'Beruang biru dengan topi tidur kecil.', body: '#4d90ff', belly: '#cfe2ff', ears: 'round', hat: 1 },
-            { id: 'mochi', name: 'Mochi si Kelinci', price: 169000, desc: 'Telinga panjang, bulu super lembut.', body: '#bcd7ff', belly: '#fff', ears: 'long' },
-            { id: 'pickle', name: 'Pickle si Katak', price: 159000, desc: 'Katak biru muda bermata bulat besar.', body: '#4cc9f0', belly: '#d8f5ff', ears: 'eyes' },
-            { id: 'miso', name: 'Miso si Kucing', price: 175000, desc: 'Kucing biru tua yang suka dipeluk.', body: '#2a56c6', belly: '#9fbcf5', ears: 'point' },
-            { id: 'boo', name: 'Boo si Hantu', price: 149000, desc: 'Hantu putih ramah, tidak menyeramkan.', body: '#f4f8ff', belly: '#f4f8ff', ears: 'ghost' },
-            { id: 'luna', name: 'Luna si Paus', price: 199000, desc: 'Paus kecil biru langit, empuk di semua sisi.', body: '#7ab8ff', belly: '#e6f1ff', ears: 'whale' }
+            { id: 'bean', name: 'Bean si Beruang', price: 189000, desc: 'Beruang biru dengan topi tidur kecil.' },
+            { id: 'mochi', name: 'Mochi si Kelinci', price: 169000, desc: 'Telinga panjang, bulu super lembut.' },
+            { id: 'pickle', name: 'Pickle si Katak', price: 159000, desc: 'Katak biru muda bermata bulat besar.' },
+            { id: 'miso', name: 'Miso si Kucing', price: 175000, desc: 'Kucing biru tua yang suka dipeluk.' },
+            { id: 'boo', name: 'Boo si Hantu', price: 149000, desc: 'Hantu putih ramah, tidak menyeramkan.' },
+            { id: 'luna', name: 'Luna si Paus', price: 199000, desc: 'Paus kecil biru langit, empuk di semua sisi.' }
         ];
-        function art(p) {
-            const b = p.body, l = p.belly, pk = '#ff9fbd'; let e = '';
-            if (p.ears === 'round') e = `<circle cx="62" cy="62" r="24" fill="${b}"/><circle cx="138" cy="62" r="24" fill="${b}"/><circle cx="62" cy="62" r="12" fill="${l}"/><circle cx="138" cy="62" r="12" fill="${l}"/>`;
-            if (p.ears === 'long') e = `<ellipse cx="72" cy="38" rx="15" ry="38" fill="${b}"/><ellipse cx="128" cy="38" rx="15" ry="38" fill="${b}"/><ellipse cx="72" cy="40" rx="7" ry="26" fill="${pk}"/><ellipse cx="128" cy="40" rx="7" ry="26" fill="${pk}"/>`;
-            if (p.ears === 'eyes') e = `<circle cx="66" cy="62" r="22" fill="${b}"/><circle cx="134" cy="62" r="22" fill="${b}"/><circle cx="66" cy="60" r="12" fill="#fff"/><circle cx="134" cy="60" r="12" fill="#fff"/><circle cx="66" cy="60" r="6" fill="#0b2447"/><circle cx="134" cy="60" r="6" fill="#0b2447"/>`;
-            if (p.ears === 'point') e = `<path d="M48 92 L52 40 L92 70Z" fill="${b}"/><path d="M152 92 L148 40 L108 70Z" fill="${b}"/><path d="M56 78 L58 54 L77 70Z" fill="${pk}"/><path d="M144 78 L142 54 L123 70Z" fill="${pk}"/>`;
-            if (p.ears === 'whale') e = `<path d="M100 40 q-4 -26 -22 -28 q4 22 22 28 q18 -6 22 -28 q-18 2 -22 28Z" fill="#cfe6ff"/>`;
-            const ghost = p.ears === 'ghost';
-            const body = ghost ? `<path d="M40 190 V100 a60 60 0 0 1 120 0 V190 l-20 -14 -20 14 -20 -14 -20 14 -20 -14Z" fill="${b}" stroke="#9fc2ff" stroke-width="3"/>`
-                : `<ellipse cx="100" cy="148" rx="58" ry="48" fill="${b}"/><ellipse cx="100" cy="158" rx="34" ry="32" fill="${l}"/><ellipse cx="62" cy="186" rx="18" ry="11" fill="${b}"/><ellipse cx="138" cy="186" rx="18" ry="11" fill="${b}"/>`;
-            const head = ghost ? '' : `<ellipse cx="100" cy="98" rx="62" ry="54" fill="${b}"/>`;
-            const eyes = p.hat ? `<path d="M72 98 q9 8 18 0M110 98 q9 8 18 0" stroke="#0b2447" stroke-width="4" fill="none" stroke-linecap="round"/>`
-                : `<circle cx="80" cy="98" r="7" fill="#0b2447"/><circle cx="120" cy="98" r="7" fill="#0b2447"/><circle cx="82" cy="95" r="2.5" fill="#fff"/><circle cx="122" cy="95" r="2.5" fill="#fff"/>`;
-            const hat = p.hat ? `<path d="M58 62 Q100 -4 150 50 L142 62 Q100 38 58 62Z" fill="#fff"/><circle cx="152" cy="52" r="9" fill="#1e6fff"/>` : '';
-            return `<svg viewBox="0 0 200 200" aria-hidden="true">${e}${body}${head}<ellipse cx="62" cy="116" rx="9" ry="6" fill="#ff8fab" opacity=".7"/><ellipse cx="138" cy="116" rx="9" ry="6" fill="#ff8fab" opacity=".7"/>${eyes}<path d="M92 114 q8 8 16 0" stroke="#0b2447" stroke-width="3.5" fill="none" stroke-linecap="round"/>${hat}</svg>`;
-        }
         const fmt = n => 'Rp ' + n.toLocaleString('id-ID');
         const $ = id => document.getElementById(id);
         let cart = [];
         const toast = m => { const t = $('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 1800) };
         function render() {
             $('count').textContent = cart.reduce((a, i) => a + i.q, 0);
-            $('items').innerHTML = cart.length ? cart.map((i, k) => { const p = P.find(x => x.id === i.id); return `<div class="it"><div class="th">${art(p)}</div><div class="m">${p.name}<small>${fmt(p.price)}</small></div><div class="q"><button data-k="${k}" data-d="-1" aria-label="Kurangi">−</button>${i.q}<button data-k="${k}" data-d="1" aria-label="Tambah">+</button></div></div>` }).join('') : '<p class="empty">Keranjang masih kosong. Tambahkan boneka untuk mulai.</p>';
+            $('items').innerHTML = cart.length ? cart.map((i, k) => { const p = P.find(x => x.id === i.id); return `<div class="it"><div class="th"><img src="" alt="${p.name}"></div><div class="m">${p.name}<small>${fmt(p.price)}</small></div><div class="q"><button data-k="${k}" data-d="-1" aria-label="Kurangi">−</button>${i.q}<button data-k="${k}" data-d="1" aria-label="Tambah">+</button></div></div>` }).join('') : '<p class="empty">Keranjang masih kosong. Tambahkan boneka untuk mulai.</p>';
             $('total').textContent = fmt(cart.reduce((a, i) => a + P.find(x => x.id === i.id).price * i.q, 0));
         }
-        $('grid').innerHTML = P.map(p => `<article class="card"><div class="pic">${art(p)}</div><div class="body"><h3>${p.name}</h3><p class="desc">${p.desc}</p><div class="price">${fmt(p.price)}</div><button class="add" data-id="${p.id}">Tambah ke keranjang</button></div></article>`).join('');
+        $('grid').innerHTML = P.map(p => `<article class="card"><div class="pic"><img src="" alt="${p.name}"></div><div class="body"><h3>${p.name}</h3><p class="desc">${p.desc}</p><div class="price">${fmt(p.price)}</div><button class="add" data-id="${p.id}">Tambah ke keranjang</button></div></article>`).join('');
         $('grid').onclick = e => {
             const b = e.target.closest('.add'); if (!b) return;
             const f = cart.find(i => i.id === b.dataset.id); f ? f.q++ : cart.push({ id: b.dataset.id, q: 1 }); render(); toast('Ditambahkan ke keranjang')
