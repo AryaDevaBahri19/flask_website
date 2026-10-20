@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_mysqldb import MySQL
+import time
 
 app = Flask(__name__)
 app.secret_key = "rahasia123"
@@ -32,6 +33,8 @@ def login():
             )
             mysql.connection.commit()
             flash('Registrasi berhasil!', 'success')
+            time.sleep(3)
+            return redirect(url_for('home'))
 
         cur.close()
 
@@ -51,6 +54,9 @@ def login():
 
         if user:
             flash(f'Selamat datang {username}!', 'success')
+            time.sleep(3)
+            return redirect (url_for('home'))
+
         else:
             flash('Username atau password salah!', 'danger')
 
