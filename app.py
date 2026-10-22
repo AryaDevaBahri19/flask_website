@@ -81,7 +81,7 @@ def logout():
 @app.route('/home')
 def home():
     cur = mysql.connection.cursor()
-    cur.execute("SELECT id, nama, deskripsi, harga, gambar FROM produk")
+    cur.execute("SELECT id, nama, deskripsi, harga, gambar, stok FROM produk")
     rows = cur.fetchall()
     cur.close()
 
@@ -91,7 +91,8 @@ def home():
             'name': r[1],
             'desc': r[2],
             'price': r[3],
-            'img': url_for('static', filename='img/' + r[4]) if r[4] else ''
+            'img': url_for('static', filename='img/' + r[4]) if r[4] else '',
+            'stok': int(r[5]),
         }
         for r in rows
     ]
