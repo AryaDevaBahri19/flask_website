@@ -1,40 +1,81 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
+
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Login & Register</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css' ) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        [hidden] { display: none !important; }
+        .lbl { display: block; text-align: left; font-size: 14px; margin: 8px 0 2px; }
+        .switch { margin-top: 16px; font-size: 14px; }
+        .switch a { cursor: pointer; text-decoration: underline; }
+    </style>
 </head>
 
 <body>
+    {% set mode = 'register' if form.get('action') == 'register' else 'login' %}
 
     <div class="container">
 
-        <h2>Login & Register</h2>
+        <h2 id="judul">{{ 'Register' if mode == 'register' else 'Login' }}</h2>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         {% for category, message in messages %}
-        <div class="msg">
+        <div class="msg {{ category }}">
             {{ message }}
         </div>
         {% endfor %}
         {% endif %}
         {% endwith %}
 
-        <form method="POST">
+        <!-- FORM LOGIN -->
+        <form method="POST" id="formLogin" {% if mode != 'login' %}hidden{% endif %}>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="username" placeholder="Username" required>
             <input type="password" name="password" placeholder="Password" required>
             <button class="login" type="submit" name="action" value="login">
                 Login
             </button>
+            <p class="switch">Belum punya akun? <a onclick="ganti('register')">Daftar di sini</a></p>
+        </form>
+
+        <!-- FORM REGISTER -->
+        <form method="POST" id="formRegister" {% if mode != 'register' %}hidden{% endif %}>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="username" placeholder="Username" value="{{ form.get('username', '') }}"
+                minlength="3" maxlength="30" required>
+            <input type="password" name="password" placeholder="Password (minimal 8 karakter)" minlength="8"
+                maxlength="128" required>
+            <input type="email" name="email" placeholder="Email" value="{{ form.get('email', '') }}" maxlength="100"
+                required>
+            <input type="text" name="alamat" placeholder="Alamat" value="{{ form.get('alamat', '') }}" maxlength="255"
+                required>
+            <input type="text" name="negara" placeholder="Negara" value="{{ form.get('negara', '') }}" maxlength="60"
+                required>
+            <input type="tel" name="telepon" placeholder="Nomor telepon (contoh: +628123456789)"
+                value="{{ form.get('telepon', '') }}" maxlength="20" required>
+            <label class="lbl" for="tanggal_lahir">Tanggal lahir</label>
+            <input type="date" id="tanggal_lahir" name="tanggal_lahir" value="{{ form.get('tanggal_lahir', '') }}"
+                min="1900-01-01" max="{{ hari_ini }}" required>
             <br><br>
             <button class="register" type="submit" name="action" value="register">
                 Register
             </button>
+            <p class="switch">Sudah punya akun? <a onclick="ganti('login')">Login di sini</a></p>
         </form>
 
     </div>
 
+    <script>
+        function ganti(mode) {
+            document.getElementById('formLogin').hidden = mode !== 'login';
+            document.getElementById('formRegister').hidden = mode !== 'register';
+            document.getElementById('judul').textContent = mode === 'login' ? 'Login' : 'Register';
+        }
+    </script>
 </body>
 
 </html>

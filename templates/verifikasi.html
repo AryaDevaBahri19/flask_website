@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Verifikasi Email</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .kode { text-align: center; font-size: 28px; letter-spacing: 8px; }
+        .info { font-size: 14px; margin: 0 0 12px; }
+        .link { background: none; border: 0; text-decoration: underline; cursor: pointer; font: inherit; color: inherit; padding: 0; }
+        .aksi { margin-top: 16px; font-size: 14px; }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <h2>Verifikasi Email</h2>
+        <p class="info">Kami mengirim kode 6 angka ke <b>{{ email }}</b>. Kode berlaku {{ menit }} menit.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="msg {{ category }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="kode" type="text" name="kode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                autocomplete="one-time-code" placeholder="000000" required autofocus>
+            <button class="login" type="submit">Verifikasi</button>
+        </form>
+
+        <div class="aksi">
+            <form method="POST" action="{{ url_for('verifikasi_kirim_ulang') }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="link" type="submit">Kirim ulang kode</button>
+            </form>
+            &nbsp;·&nbsp;
+            <a href="{{ url_for('login') }}">Kembali</a>
+        </div>
+
+    </div>
+</body>
+
+</html>

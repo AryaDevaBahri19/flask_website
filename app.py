@@ -2,8 +2,10 @@ import hmac
 import os
 import re
 import secrets
+import smtplib
 import time
-from datetime import date
+from datetime import date, datetime, timedelta
+from email.message import EmailMessage
 from functools import wraps
 
 from flask import Flask, render_template, request, redirect, url_for, flash, session
@@ -14,11 +16,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
-# ------------------------------------------------------------
-# Konfigurasi. Nilai rahasia dibaca dari environment variable.
-# Kalau SECRET_KEY tidak diset, dibuat acak setiap aplikasi dijalankan
-# (aman, tapi semua orang akan logout saat server restart).
-# ------------------------------------------------------------
 app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
 
 app.config['MYSQL_HOST'] = os.environ.get('DB_HOST', 'localhost')
@@ -29,8 +26,8 @@ app.config['MYSQL_DB'] = os.environ.get('DB_NAME', 'flask_login')
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('USE_HTTPS') == '1'
-app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 2   # login berlaku 2 jam
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024        # batasi ukuran upload 5 MB
+app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 2   
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024        
 
 mysql = MySQL(app)
 csrf = CSRFProtect(app)
@@ -45,9 +42,6 @@ UPLOAD_DIR = os.path.abspath(os.path.join(app.root_path, 'static', 'img'))
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
-# ------------------------------------------------------------
-# Pembatasan percobaan login (disimpan di memori, reset saat server restart)
-# ------------------------------------------------------------
 MAX_GAGAL = 5
 KUNCI_DETIK = 300
 percobaan = {}
@@ -73,9 +67,7 @@ def catat_gagal(key):
     percobaan[key] = (jumlah + 1, time.time())
 
 
-# ------------------------------------------------------------
-# Penjaga halaman
-# ------------------------------------------------------------
+
 def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -96,9 +88,6 @@ def admin_required(f):
     return wrapper
 
 
-# ------------------------------------------------------------
-# Header keamanan dan penanganan error
-# ------------------------------------------------------------
 @app.after_request
 def header_keamanan(resp):
     resp.headers['X-Content-Type-Options'] = 'nosniff'
@@ -113,9 +102,6 @@ def csrf_error(e):
     return redirect(url_for('login'))
 
 
-# ------------------------------------------------------------
-# Validasi data registrasi
-# ------------------------------------------------------------
 def validasi_register(form):
     """Mengembalikan (data_dict, None) atau (None, pesan_error)."""
     username = form.get('username', '').strip()
@@ -155,9 +141,57 @@ def validasi_register(form):
     }, None
 
 
-# ------------------------------------------------------------
-# Login dan register
-# ------------------------------------------------------------
+
+OTP_BERLAKU_MENIT = 10   
+OTP_MAX_SALAH = 5        
+OTP_JEDA_KIRIM = 60       
+
+
+def buat_otp():
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def kirim_otp(email, kode):
+    """Mengirim OTP lewat SMTP. Kalau SMTP_HOST belum diset (mode belajar),
+    kode dicetak di terminal tempat Flask berjalan."""
+    host = os.environ.get('SMTP_HOST')
+    if not host:
+        print(f'[DEV] Kode OTP untuk {email}: {kode}')
+        return True
+
+    pengirim = os.environ.get('SMTP_FROM') or os.environ.get('SMTP_USER', '')
+    msg = EmailMessage()
+    msg['Subject'] = 'Kode verifikasi Squishly'
+    msg['From'] = pengirim
+    msg['To'] = email
+    msg.set_content(
+        f'Kode verifikasi kamu: {kode}\n\n'
+        f'Kode berlaku {OTP_BERLAKU_MENIT} menit. Jangan bagikan kode ini ke siapa pun.\n'
+        'Kalau kamu tidak merasa mendaftar, abaikan email ini.'
+    )
+    try:
+        with smtplib.SMTP(host, int(os.environ.get('SMTP_PORT', '587')), timeout=10) as server:
+            server.starttls()
+            server.login(os.environ.get('SMTP_USER', ''), os.environ.get('SMTP_PASSWORD', ''))
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        app.logger.error('Gagal mengirim OTP: %s', e)
+        return False
+
+
+def hapus_pending(email):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM registrasi_pending WHERE email=%s", (email,))
+    mysql.connection.commit()
+    cur.close()
+
+
+def samarkan_email(email):
+    nama, _, domain = email.partition('@')
+    return nama[:1] + '***@' + domain
+
+
 @app.route('/', methods=['GET', 'POST'])
 def login():
     aksi = request.form.get('action')
@@ -168,30 +202,50 @@ def login():
             flash(error, 'danger')
         else:
             cur = mysql.connection.cursor()
+            cur.execute("DELETE FROM registrasi_pending WHERE kadaluarsa < %s",
+                        (datetime.now() - timedelta(hours=1),))
             cur.execute(
                 "SELECT username, email FROM users WHERE username=%s OR email=%s",
                 (data['username'], data['email'])
             )
             ada = cur.fetchall()
+
             if ada:
+                cur.close()
                 if any(r[1] == data['email'] for r in ada):
                     flash('Email sudah terdaftar!', 'danger')
                 else:
                     flash('Username sudah digunakan!', 'danger')
             else:
-                try:
+                cur.execute("SELECT dikirim_terakhir FROM registrasi_pending WHERE email=%s",
+                            (data['email'],))
+                lama = cur.fetchone()
+                if lama and (datetime.now() - lama[0]).total_seconds() < OTP_JEDA_KIRIM:
+                    cur.close()
+                    flash('Kode OTP baru saja dikirim. Tunggu sebentar sebelum mencoba lagi.', 'danger')
+                else:
+                    kode = buat_otp()
+                    sekarang = datetime.now()
+                    cur.execute("DELETE FROM registrasi_pending WHERE email=%s", (data['email'],))
                     cur.execute(
-                        "INSERT INTO users(username, password, email, alamat, negara, telepon, tanggal_lahir) "
-                        "VALUES(%s,%s,%s,%s,%s,%s,%s)",
-                        (data['username'], generate_password_hash(data['password']),
-                         data['email'], data['alamat'], data['negara'],
-                         data['telepon'], data['tanggal_lahir'])
+                        "INSERT INTO registrasi_pending (email, username, password_hash, alamat, negara, "
+                        "telepon, tanggal_lahir, otp_hash, kadaluarsa, percobaan, dikirim_terakhir) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,0,%s)",
+                        (data['email'], data['username'], generate_password_hash(data['password']),
+                         data['alamat'], data['negara'], data['telepon'], data['tanggal_lahir'],
+                         generate_password_hash(kode),
+                         sekarang + timedelta(minutes=OTP_BERLAKU_MENIT), sekarang)
                     )
                     mysql.connection.commit()
-                    flash('Registrasi berhasil! Silakan login.', 'success')
-                except IntegrityError:
-                    flash('Username atau email sudah digunakan!', 'danger')
-            cur.close()
+                    cur.close()
+
+                    if kirim_otp(data['email'], kode):
+                        session['pending_email'] = data['email']
+                        flash('Kode OTP sudah dikirim ke email kamu.', 'success')
+                        return redirect(url_for('verifikasi'))
+
+                    hapus_pending(data['email'])
+                    flash('Gagal mengirim email OTP. Coba lagi nanti.', 'danger')
 
     elif aksi == 'login':
         username = request.form.get('username', '').strip()
@@ -215,7 +269,6 @@ def login():
             if tersimpan.startswith(('scrypt:', 'pbkdf2:')):
                 valid = check_password_hash(tersimpan, password)
             else:
-                # Akun lama dengan password teks biasa: cocokkan, lalu langsung diubah jadi hash
                 valid = hmac.compare_digest(tersimpan.encode('utf-8'), password.encode('utf-8'))
                 if valid:
                     cur.execute(
@@ -227,7 +280,7 @@ def login():
 
         if valid:
             percobaan.pop(key, None)
-            session.clear()               # buang sesi lama, cegah session fixation
+            session.clear()               
             session.permanent = True
             session['user_id'] = user[0]
             session['username'] = user[1]
@@ -244,15 +297,114 @@ def login():
     return render_template('index.html', form=request.form, hari_ini=date.today().isoformat())
 
 
+@app.route('/verifikasi', methods=['GET', 'POST'])
+def verifikasi():
+    email = session.get('pending_email')
+    if not email:
+        return redirect(url_for('login'))
+
+    cur = mysql.connection.cursor()
+    cur.execute(
+        "SELECT username, password_hash, alamat, negara, telepon, tanggal_lahir, "
+        "otp_hash, kadaluarsa, percobaan FROM registrasi_pending WHERE email=%s",
+        (email,)
+    )
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        session.pop('pending_email', None)
+        flash('Data pendaftaran tidak ditemukan. Silakan daftar ulang.', 'danger')
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        kode = request.form.get('kode', '').strip()
+
+        if datetime.now() > row[7]:
+            cur.close()
+            hapus_pending(email)
+            session.pop('pending_email', None)
+            flash('Kode OTP sudah kedaluwarsa. Silakan daftar ulang.', 'danger')
+            return redirect(url_for('login'))
+
+        if len(kode) == 6 and kode.isdigit() and check_password_hash(row[6], kode):
+            try:
+                cur.execute(
+                    "INSERT INTO users(username, password, email, alamat, negara, telepon, tanggal_lahir) "
+                    "VALUES(%s,%s,%s,%s,%s,%s,%s)",
+                    (row[0], row[1], email, row[2], row[3], row[4], row[5])
+                )
+                cur.execute("DELETE FROM registrasi_pending WHERE email=%s", (email,))
+                mysql.connection.commit()
+                cur.close()
+                session.pop('pending_email', None)
+                flash('Email terverifikasi, registrasi berhasil! Silakan login.', 'success')
+            except IntegrityError:
+                cur.execute("DELETE FROM registrasi_pending WHERE email=%s", (email,))
+                mysql.connection.commit()
+                cur.close()
+                session.pop('pending_email', None)
+                flash('Username atau email sudah digunakan. Silakan daftar ulang.', 'danger')
+            return redirect(url_for('login'))
+
+        # kode salah
+        cur.execute("UPDATE registrasi_pending SET percobaan = percobaan + 1 WHERE email=%s", (email,))
+        mysql.connection.commit()
+        sisa = OTP_MAX_SALAH - (row[8] + 1)
+        if sisa <= 0:
+            cur.execute("DELETE FROM registrasi_pending WHERE email=%s", (email,))
+            mysql.connection.commit()
+            cur.close()
+            session.pop('pending_email', None)
+            flash('Terlalu banyak kode salah. Silakan daftar ulang.', 'danger')
+            return redirect(url_for('login'))
+        flash(f'Kode OTP salah. Sisa percobaan: {sisa}.', 'danger')
+
+    cur.close()
+    return render_template('verifikasi.html', email=samarkan_email(email),
+                           menit=OTP_BERLAKU_MENIT)
+
+
+@app.route('/verifikasi/kirim-ulang', methods=['POST'])
+def verifikasi_kirim_ulang():
+    email = session.get('pending_email')
+    if not email:
+        return redirect(url_for('login'))
+
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT dikirim_terakhir FROM registrasi_pending WHERE email=%s", (email,))
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        session.pop('pending_email', None)
+        return redirect(url_for('login'))
+
+    if (datetime.now() - row[0]).total_seconds() < OTP_JEDA_KIRIM:
+        cur.close()
+        flash('Tunggu sebentar sebelum meminta kode baru.', 'danger')
+        return redirect(url_for('verifikasi'))
+
+    kode = buat_otp()
+    sekarang = datetime.now()
+    cur.execute(
+        "UPDATE registrasi_pending SET otp_hash=%s, kadaluarsa=%s, percobaan=0, dikirim_terakhir=%s "
+        "WHERE email=%s",
+        (generate_password_hash(kode), sekarang + timedelta(minutes=OTP_BERLAKU_MENIT), sekarang, email)
+    )
+    mysql.connection.commit()
+    cur.close()
+
+    if kirim_otp(email, kode):
+        flash('Kode OTP baru sudah dikirim.', 'success')
+    else:
+        flash('Gagal mengirim email OTP. Coba lagi nanti.', 'danger')
+    return redirect(url_for('verifikasi'))
+
+
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
-
-# ------------------------------------------------------------
-# Halaman toko (harus login)
-# ------------------------------------------------------------
 @app.route('/home')
 @login_required
 def home():
@@ -275,9 +427,6 @@ def home():
     return render_template('home.html', produk=produk)
 
 
-# ------------------------------------------------------------
-# Halaman admin
-# ------------------------------------------------------------
 def validasi_produk(form):
     """Mengembalikan ((nama, deskripsi, harga, stok), None) atau (None, pesan_error)."""
     nama = form.get('nama', '').strip()
@@ -299,9 +448,6 @@ def validasi_produk(form):
     return (nama, deskripsi, harga, stok), None
 
 
-# ------------------------------------------------------------
-# Upload dan hapus gambar di static/img
-# ------------------------------------------------------------
 def deteksi_tipe(header):
     """Menentukan jenis gambar dari isi file (bukan dari nama file)."""
     if header.startswith(b'\xff\xd8\xff'):
@@ -460,12 +606,11 @@ def admin_hapus(id):
     cur.close()
 
     if row:
-        hapus_gambar(row[0])   # hapus file gambarnya dari static/img
+        hapus_gambar(row[0])  
 
     flash('Produk dihapus.', 'success')
     return redirect(url_for('admin'))
 
 
 if __name__ == '__main__':
-    # Debug hanya menyala kalau FLASK_DEBUG=1 diset (jangan dipakai saat online)
     app.run(debug=os.environ.get('FLASK_DEBUG') == '1')
