@@ -16,6 +16,7 @@
         input:focus, textarea:focus { outline: 0; border-color: #1e6fff; }
         small { color: #5b6f93; font-weight: 400; }
         .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        #preview { max-width: 160px; border-radius: 10px; border: 2px solid #d6e5fb; }
         .btns { display: flex; gap: 10px; }
         .btn { background: #1e6fff; color: #fff; border: 0; border-radius: 10px; padding: 11px 18px; font-weight: 700; text-decoration: none; cursor: pointer; font-size: 15px; }
         .btn.gray { background: #5b6f93; }
@@ -34,7 +35,8 @@
         {% endfor %}
         {% endwith %}
 
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>Nama produk
                 <input type="text" name="nama" value="{{ p[1] if p else '' }}" required maxlength="100">
             </label>
@@ -52,9 +54,14 @@
                 </label>
             </div>
 
-            <label>Nama file gambar
-                <input type="text" name="gambar" value="{{ p[4] if p and p[4] else '' }}" placeholder="contoh: bean.jpg">
-                <small>File harus ada di folder static/img/</small>
+            <label>Gambar produk
+                {% if p and p[4] %}
+                <img id="preview" src="{{ url_for('static', filename='img/' ~ p[4]) }}" alt="Gambar saat ini">
+                {% else %}
+                <img id="preview" alt="" hidden>
+                {% endif %}
+                <input type="file" name="gambar" id="gambar" accept="image/jpeg,image/png,image/webp,image/gif">
+                <small>JPG, PNG, WEBP, atau GIF, maksimal 5 MB.{% if p %} Kosongkan kalau tidak ingin mengganti gambar.{% endif %}</small>
             </label>
 
             <div class="btns">
@@ -63,6 +70,15 @@
             </div>
         </form>
     </div>
+<script>
+        document.getElementById('gambar').addEventListener('change', function () {
+            const img = document.getElementById('preview');
+            const file = this.files[0];
+            if (!file) return;
+            img.src = URL.createObjectURL(file);
+            img.hidden = false;
+        });
+    </script>
 </body>
 
 </html>

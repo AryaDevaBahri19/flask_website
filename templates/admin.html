@@ -5,7 +5,30 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Admin – Squishly</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, sans-serif; background: #f3f8ff; color: #0b2447; }
+        .wrap { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        h1 { margin: 0; font-size: 26px; }
+        .nav { display: flex; gap: 10px; align-items: center; }
+        .btn { display: inline-block; background: #1e6fff; color: #fff; border: 0; border-radius: 10px; padding: 9px 16px; font-weight: 700; text-decoration: none; cursor: pointer; font-size: 14px; }
+        .btn.gray { background: #5b6f93; }
+        .btn.red { background: #d93a4a; }
+        .btn.small { padding: 6px 12px; }
+        .flash { padding: 12px 16px; border-radius: 10px; margin-bottom: 14px; font-weight: 600; }
+        .flash.success { background: #d6f5e3; color: #11643a; }
+        .flash.danger { background: #fde0e3; color: #8c1d2a; }
+        .scroll { overflow-x: auto; background: #fff; border: 2px solid #d6e5fb; border-radius: 16px; }
+        table { width: 100%; border-collapse: collapse; min-width: 640px; }
+        th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #d6e5fb; }
+        th { background: #dcebff; font-size: 14px; }
+        tr:last-child td { border-bottom: 0; }
+        .aksi { display: flex; gap: 6px; }
+        .aksi form { margin: 0; }
+        .thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid #d6e5fb; display: block; }
+        .kosong { padding: 24px; text-align: center; color: #5b6f93; }
+    </style>
 </head>
 
 <body>
@@ -46,12 +69,13 @@
                         <td>{{ p[1] }}</td>
                         <td>Rp {{ "{:,}".format(p[3]).replace(",", ".") }}</td>
                         <td>{{ p[5] }}</td>
-                        <td>{{ p[4] or '-' }}</td>
+                        <td>{% if p[4] %}<img class="thumb" src="{{ url_for('static', filename='img/' ~ p[4]) }}" alt="{{ p[1] }}">{% else %}-{% endif %}</td>
                         <td>
                             <div class="aksi">
                                 <a class="btn small" href="{{ url_for('admin_edit', id=p[0]) }}">Edit</a>
                                 <form method="post" action="{{ url_for('admin_hapus', id=p[0]) }}"
                                     onsubmit="return confirm('Hapus produk {{ p[1] }}?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button class="btn small red" type="submit">Hapus</button>
                                 </form>
                             </div>
