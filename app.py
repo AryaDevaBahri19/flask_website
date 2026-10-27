@@ -1,5 +1,6 @@
 import csv
 import hmac
+import json
 import io
 import logging
 import os
@@ -21,17 +22,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
-# Aktifkan hanya kalau aplikasi berada di belakang reverse proxy yang kamu percaya (mis. Nginx),
-# supaya IP asli pengunjung terbaca di log dan di pembatas login.
 if os.environ.get('BEHIND_PROXY') == '1':
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 
-# ------------------------------------------------------------
-# Konfigurasi. Nilai rahasia dibaca dari environment variable.
-# Kalau SECRET_KEY tidak diset, dibuat acak setiap aplikasi dijalankan
-# (aman, tapi semua orang akan logout saat server restart).
-# ------------------------------------------------------------
 app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
 
 app.config['MYSQL_HOST'] = os.environ.get('DB_HOST', 'localhost')
@@ -42,18 +36,13 @@ app.config['MYSQL_DB'] = os.environ.get('DB_NAME', 'flask_login')
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('USE_HTTPS') == '1'
-app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 2   # login berlaku 2 jam
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024        # batasi ukuran upload 5 MB
+app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 2   
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024        
 
 mysql = MySQL(app)
 csrf = CSRFProtect(app)
 
 
-# ------------------------------------------------------------
-# Log keamanan untuk SOC/SIEM.
-# Ditulis ke file dan (opsional) dikirim lewat syslog ke server log.
-# Password dan kode OTP TIDAK PERNAH dicatat.
-# ------------------------------------------------------------
 log_keamanan = logging.getLogger('squishly.security')
 log_keamanan.setLevel(logging.INFO)
 
@@ -92,10 +81,6 @@ GAMBAR_RE = re.compile(r'^[A-Za-z0-9_\-]+\.(jpg|jpeg|png|webp|gif)$', re.IGNOREC
 UPLOAD_DIR = os.path.abspath(os.path.join(app.root_path, 'static', 'img'))
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-
-# ------------------------------------------------------------
-# Pembatasan percobaan login (disimpan di memori, reset saat server restart)
-# ------------------------------------------------------------
 MAX_GAGAL = 5
 KUNCI_DETIK = 300
 percobaan = {}
@@ -121,9 +106,6 @@ def catat_gagal(key):
     percobaan[key] = (jumlah + 1, time.time())
 
 
-# ------------------------------------------------------------
-# Penjaga halaman
-# ------------------------------------------------------------
 def pengguna_saat_ini():
     """Membaca status akun yang sedang login langsung dari database.
     Mengembalikan (username, role) atau None kalau tidak login / akun nonaktif / sudah dihapus."""
@@ -164,9 +146,6 @@ def admin_required(f):
     return wrapper
 
 
-# ------------------------------------------------------------
-# Header keamanan dan penanganan error
-# ------------------------------------------------------------
 @app.after_request
 def header_keamanan(resp):
     resp.headers['X-Content-Type-Options'] = 'nosniff'
@@ -182,9 +161,6 @@ def csrf_error(e):
     return redirect(url_for('login'))
 
 
-# ------------------------------------------------------------
-# Validasi data registrasi
-# ------------------------------------------------------------
 def validasi_register(form):
     """Mengembalikan (data_dict, None) atau (None, pesan_error)."""
     username = form.get('username', '').strip()
@@ -224,12 +200,9 @@ def validasi_register(form):
     }, None
 
 
-# ------------------------------------------------------------
-# OTP verifikasi email
-# ------------------------------------------------------------
-OTP_BERLAKU_MENIT = 10    # kode kedaluwarsa setelah 10 menit
-OTP_MAX_SALAH = 5         # salah 5 kali, pendaftaran dibatalkan
-OTP_JEDA_KIRIM = 60       # jeda minimal antar pengiriman (detik)
+OTP_BERLAKU_MENIT = 10    
+OTP_MAX_SALAH = 5         
+OTP_JEDA_KIRIM = 60       
 
 
 def buat_otp():
@@ -279,9 +252,6 @@ def samarkan_email(email):
     return nama[:1] + '***@' + domain
 
 
-# ------------------------------------------------------------
-# Login dan register
-# ------------------------------------------------------------
 @app.route('/', methods=['GET', 'POST'])
 def login():
     aksi = request.form.get('action')
@@ -292,7 +262,6 @@ def login():
             flash(error, 'danger')
         else:
             cur = mysql.connection.cursor()
-            # bersihkan data pendaftaran lama yang tidak pernah diverifikasi
             cur.execute("DELETE FROM registrasi_pending WHERE kadaluarsa < %s",
                         (datetime.now() - timedelta(hours=1),))
             cur.execute(
@@ -380,7 +349,7 @@ def login():
 
         if valid:
             percobaan.pop(key, None)
-            session.clear()               # buang sesi lama, cegah session fixation
+            session.clear()               
             session.permanent = True
             session['user_id'] = user[0]
             session['username'] = user[1]
@@ -511,38 +480,11 @@ def logout():
     return redirect(url_for('login'))
 
 
-# ------------------------------------------------------------
-# Halaman toko (harus login)
-# ------------------------------------------------------------
-@app.route('/home')
-@login_required
-def home():
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT id, nama, deskripsi, harga, gambar, stok FROM produk")
-    rows = cur.fetchall()
-    cur.close()
-
-    produk = [
-        {
-            'id': str(r[0]),
-            'name': r[1],
-            'desc': r[2],
-            'price': r[3],
-            'img': url_for('static', filename='img/' + r[4]) if r[4] else '',
-            'stok': int(r[5]),
-        }
-        for r in rows
-    ]
-    return render_template('home.html', produk=produk)
-
-
-# ------------------------------------------------------------
-# Halaman admin
-# ------------------------------------------------------------
 def validasi_produk(form):
-    """Mengembalikan ((nama, deskripsi, harga, stok), None) atau (None, pesan_error)."""
+    """Mengembalikan ((nama, deskripsi, harga, stok, kategori), None) atau (None, pesan_error)."""
     nama = form.get('nama', '').strip()
     deskripsi = form.get('deskripsi', '').strip()
+    kategori = form.get('kategori', '')
     try:
         harga = int(form.get('harga', ''))
         stok = int(form.get('stok', ''))
@@ -557,7 +499,9 @@ def validasi_produk(form):
         return None, 'Harga tidak valid.'
     if not 0 <= stok <= 100_000:
         return None, 'Stok tidak valid.'
-    return (nama, deskripsi, harga, stok), None
+    if kategori not in KATEGORI:
+        return None, 'Kategori tidak valid.'
+    return (nama, deskripsi, harga, stok, kategori), None
 
 
 # ------------------------------------------------------------
@@ -618,14 +562,16 @@ def hapus_gambar(nama):
 @app.errorhandler(413)
 def file_terlalu_besar(e):
     flash('Ukuran file terlalu besar (maksimal 5 MB).', 'danger')
-    return redirect(url_for('admin'))
+    if session.get('role') == 'admin':
+        return redirect(url_for('admin'))
+    return redirect(url_for('riwayat'))
 
 
 @app.route('/admin')
 @admin_required
 def admin():
     cur = mysql.connection.cursor()
-    cur.execute("SELECT id, nama, deskripsi, harga, gambar, stok FROM produk ORDER BY id DESC")
+    cur.execute("SELECT id, nama, deskripsi, harga, gambar, stok, kategori FROM produk ORDER BY id DESC")
     daftar = cur.fetchall()
     cur.close()
     return render_template('admin.html', daftar=daftar)
@@ -645,12 +591,12 @@ def admin_tambah():
             flash(error, 'danger')
             return render_template('admin_form.html', p=None, judul='Tambah Produk')
 
-        nama, deskripsi, harga, stok = data
+        nama, deskripsi, harga, stok, kategori = data
         try:
             cur = mysql.connection.cursor()
             cur.execute(
-                "INSERT INTO produk (nama, deskripsi, harga, gambar, stok) VALUES (%s,%s,%s,%s,%s)",
-                (nama, deskripsi, harga, nama_file or '', stok)
+                "INSERT INTO produk (nama, deskripsi, harga, gambar, stok, kategori) VALUES (%s,%s,%s,%s,%s,%s)",
+                (nama, deskripsi, harga, nama_file or '', stok, kategori)
             )
             mysql.connection.commit()
             cur.close()
@@ -669,7 +615,7 @@ def admin_tambah():
 @admin_required
 def admin_edit(id):
     cur = mysql.connection.cursor()
-    cur.execute("SELECT id, nama, deskripsi, harga, gambar, stok FROM produk WHERE id=%s", (id,))
+    cur.execute("SELECT id, nama, deskripsi, harga, gambar, stok, kategori FROM produk WHERE id=%s", (id,))
     p = cur.fetchone()
     cur.close()
     if not p:
@@ -689,12 +635,12 @@ def admin_edit(id):
 
         gambar_lama = p[4]
         gambar_baru = nama_file or gambar_lama
-        nama, deskripsi, harga, stok = data
+        nama, deskripsi, harga, stok, kategori = data
         try:
             cur = mysql.connection.cursor()
             cur.execute(
-                "UPDATE produk SET nama=%s, deskripsi=%s, harga=%s, gambar=%s, stok=%s WHERE id=%s",
-                (nama, deskripsi, harga, gambar_baru, stok, id)
+                "UPDATE produk SET nama=%s, deskripsi=%s, harga=%s, gambar=%s, stok=%s, kategori=%s WHERE id=%s",
+                (nama, deskripsi, harga, gambar_baru, stok, kategori, id)
             )
             mysql.connection.commit()
             cur.close()
@@ -766,6 +712,7 @@ def filter_status(kode):
 @app.route('/admin/pesanan')
 @admin_required
 def admin_pesanan():
+    batalkan_kedaluwarsa()
     status = request.args.get('status', '')
     cur = mysql.connection.cursor()
     cur.execute("SELECT status, COUNT(*) FROM pesanan GROUP BY status")
@@ -1009,6 +956,469 @@ def admin_pengguna_role(id):
     catat('pengguna_ubah_role', admin=session.get('username'), target_id=id, role=role)
     flash('Role pengguna diperbarui.', 'success')
     return redirect(url_for('admin_pengguna'))
+
+
+KATEGORI = {
+    'big_plushie': 'Big Plushie',
+    'plushie': 'Plushie',
+    'squishy': 'Squishy',
+    'pillow': 'Pillow',
+}
+
+URUTAN = {
+    'terbaru': 'p.id DESC',
+    'termurah': 'p.harga ASC',
+    'termahal': 'p.harga DESC',
+    'rating': 'rata DESC, jumlah_review DESC',
+}
+
+PESANAN_KEDALUWARSA_JAM = 24   # pesanan yang belum dibayar dibatalkan otomatis setelah 24 jam
+
+BANK = {
+    'nama': os.environ.get('BANK_NAMA', 'BCA'),
+    'rekening': os.environ.get('BANK_REKENING', '1234567890'),
+    'atas_nama': os.environ.get('BANK_ATAS_NAMA', 'Squishly (contoh)'),
+}
+
+
+@app.context_processor
+def konteks_global():
+    return {'KATEGORI': KATEGORI}
+
+
+@app.template_filter('kategori_label')
+def filter_kategori(kode):
+    return KATEGORI.get(kode, kode or '-')
+
+
+def like_aman(teks):
+    return teks.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+
+# ---------- Katalog: cari, filter, urutkan ----------
+@app.route('/home')
+@login_required
+def home():
+    q = request.args.get('q', '').strip()[:50]
+    kategori = request.args.get('kategori', '')
+    urut = request.args.get('urut', 'terbaru')
+    if urut not in URUTAN:
+        urut = 'terbaru'
+    if kategori not in KATEGORI:
+        kategori = ''
+
+    sql = ("SELECT p.id, p.nama, p.deskripsi, p.harga, p.gambar, p.stok, p.kategori, "
+           "COALESCE(AVG(r.rating), 0) AS rata, COUNT(r.id) AS jumlah_review "
+           "FROM produk p LEFT JOIN review r ON r.produk_id = p.id")
+    where, args = [], []
+    if kategori:
+        where.append("p.kategori=%s")
+        args.append(kategori)
+    if q:
+        where.append("(p.nama LIKE %s OR p.deskripsi LIKE %s)")
+        args += [f'%{like_aman(q)}%', f'%{like_aman(q)}%']
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    sql += " GROUP BY p.id ORDER BY " + URUTAN[urut] + " LIMIT 60"
+
+    cur = mysql.connection.cursor()
+    cur.execute(sql, args or None)
+    produk = cur.fetchall()
+    cur.close()
+    return render_template('home.html', produk=produk, q=q, kategori=kategori, urut=urut)
+
+
+@app.route('/produk/<int:id>')
+@login_required
+def produk_detail(id):
+    uid = session['user_id']
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id, nama, deskripsi, harga, gambar, stok, kategori FROM produk WHERE id=%s", (id,))
+    p = cur.fetchone()
+    if not p:
+        cur.close()
+        flash('Produk tidak ditemukan.', 'danger')
+        return redirect(url_for('home'))
+
+    cur.execute("SELECT COALESCE(AVG(rating), 0), COUNT(*) FROM review WHERE produk_id=%s", (id,))
+    rata, jumlah = cur.fetchone()
+    cur.execute(
+        "SELECT u.username, r.rating, r.komentar, r.dibuat_pada FROM review r "
+        "JOIN users u ON u.id = r.user_id WHERE r.produk_id=%s "
+        "ORDER BY r.dibuat_pada DESC LIMIT 50", (id,)
+    )
+    ulasan = cur.fetchall()
+    cur.execute(
+        "SELECT 1 FROM pesanan ps JOIN detail_pesanan d ON d.pesanan_id = ps.id "
+        "WHERE ps.user_id=%s AND d.produk_id=%s AND ps.status='disetujui' LIMIT 1", (uid, id)
+    )
+    boleh_review = cur.fetchone() is not None
+    cur.execute("SELECT rating, komentar FROM review WHERE produk_id=%s AND user_id=%s", (id, uid))
+    ulasan_saya = cur.fetchone()
+    cur.close()
+
+    return render_template('produk.html', p=p, rata=float(rata), jumlah=jumlah, ulasan=ulasan,
+                           boleh_review=boleh_review, ulasan_saya=ulasan_saya)
+
+
+@app.route('/produk/<int:id>/review', methods=['POST'])
+@login_required
+def produk_review(id):
+    uid = session['user_id']
+    try:
+        rating = int(request.form.get('rating', ''))
+    except ValueError:
+        rating = 0
+    komentar = request.form.get('komentar', '').strip()
+
+    if not 1 <= rating <= 5:
+        flash('Pilih rating 1 sampai 5.', 'danger')
+        return redirect(url_for('produk_detail', id=id))
+    if len(komentar) > 500:
+        flash('Ulasan maksimal 500 karakter.', 'danger')
+        return redirect(url_for('produk_detail', id=id))
+
+    cur = mysql.connection.cursor()
+    cur.execute(
+        "SELECT 1 FROM pesanan ps JOIN detail_pesanan d ON d.pesanan_id = ps.id "
+        "WHERE ps.user_id=%s AND d.produk_id=%s AND ps.status='disetujui' LIMIT 1", (uid, id)
+    )
+    if not cur.fetchone():
+        cur.close()
+        flash('Kamu hanya bisa mengulas produk yang pernah kamu beli (pembayaran sudah disetujui).', 'danger')
+        return redirect(url_for('produk_detail', id=id))
+
+    cur.execute(
+        "INSERT INTO review (produk_id, user_id, rating, komentar) VALUES (%s,%s,%s,%s) "
+        "ON DUPLICATE KEY UPDATE rating=VALUES(rating), komentar=VALUES(komentar), dibuat_pada=CURRENT_TIMESTAMP",
+        (id, uid, rating, komentar)
+    )
+    mysql.connection.commit()
+    cur.close()
+    catat('review_dikirim', username=session.get('username'), produk=id, rating=rating)
+    flash('Terima kasih, ulasanmu tersimpan.', 'success')
+    return redirect(url_for('produk_detail', id=id))
+
+
+# ---------- Pembatalan dan kedaluwarsa pesanan ----------
+def _batalkan(cur, pesanan_id, catatan, user_id=None):
+    """Membatalkan pesanan yang belum dibayar dan mengembalikan stoknya.
+    Berhasil hanya kalau statusnya masih 'menunggu_pembayaran'."""
+    sql = "UPDATE pesanan SET status='dibatalkan', catatan_admin=%s WHERE id=%s AND status='menunggu_pembayaran'"
+    args = [catatan, pesanan_id]
+    if user_id is not None:
+        sql += " AND user_id=%s"
+        args.append(user_id)
+    cur.execute(sql, args)
+    if cur.rowcount != 1:
+        return False
+    cur.execute(
+        "UPDATE produk pr JOIN detail_pesanan d ON d.produk_id = pr.id "
+        "SET pr.stok = pr.stok + d.jumlah WHERE d.pesanan_id=%s", (pesanan_id,)
+    )
+    return True
+
+
+def batalkan_kedaluwarsa():
+    batas = datetime.now() - timedelta(hours=PESANAN_KEDALUWARSA_JAM)
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id FROM pesanan WHERE status='menunggu_pembayaran' AND dibuat_pada < %s", (batas,))
+    for (pid,) in cur.fetchall():
+        _batalkan(cur, pid, 'Dibatalkan otomatis: melewati batas waktu pembayaran')
+    mysql.connection.commit()
+    cur.close()
+
+
+
+@app.route('/checkout', methods=['POST'])
+@login_required
+def checkout():
+    batalkan_kedaluwarsa()
+
+    
+    try:
+        data = json.loads(request.form.get('items', '[]')[:5000])
+        if not isinstance(data, list) or not 0 < len(data) <= 50:
+            raise ValueError
+        jumlah = {}
+        for it in data:
+            pid, q = int(it['id']), int(it['q'])
+            if q < 1:
+                raise ValueError
+            jumlah[pid] = jumlah.get(pid, 0) + q
+        if any(q > 99 for q in jumlah.values()):
+            raise ValueError
+    except (ValueError, TypeError, KeyError):
+        flash('Data keranjang tidak valid.', 'danger')
+        return redirect(url_for('home'))
+
+    ids = list(jumlah)
+    marks = ','.join(['%s'] * len(ids))
+    cur = mysql.connection.cursor()
+    try:
+        cur.execute(f"SELECT id, nama, harga, stok FROM produk WHERE id IN ({marks}) FOR UPDATE", ids)
+        produk = {r[0]: r for r in cur.fetchall()}
+
+        for pid, q in jumlah.items():
+            p = produk.get(pid)
+            if not p:
+                raise LookupError('Ada produk di keranjang yang sudah tidak tersedia.')
+            if p[3] < q:
+                raise LookupError(f'Stok {p[1]} tidak cukup (tersisa {p[3]}). Kurangi jumlahnya.')
+
+        total = sum(produk[pid][2] * q for pid, q in jumlah.items())
+        cur.execute("INSERT INTO pesanan (user_id, total, status) VALUES (%s,%s,'menunggu_pembayaran')",
+                    (session['user_id'], total))
+        pesanan_id = cur.lastrowid
+
+        for pid, q in jumlah.items():
+            cur.execute("UPDATE produk SET stok = stok - %s WHERE id=%s AND stok >= %s", (q, pid, q))
+            if cur.rowcount != 1:
+                raise LookupError(f'Stok {produk[pid][1]} baru saja habis.')
+            cur.execute(
+                "INSERT INTO detail_pesanan (pesanan_id, produk_id, nama_produk, harga, jumlah) "
+                "VALUES (%s,%s,%s,%s,%s)", (pesanan_id, pid, produk[pid][1], produk[pid][2], q)
+            )
+        mysql.connection.commit()
+    except LookupError as e:
+        mysql.connection.rollback()
+        cur.close()
+        flash(str(e), 'danger')
+        return redirect(url_for('home'))
+    except Exception:
+        mysql.connection.rollback()
+        cur.close()
+        raise
+    cur.close()
+
+    catat('checkout', username=session.get('username'), pesanan=pesanan_id, total=total)
+    return redirect(url_for('pesanan_detail', id=pesanan_id, baru=1))
+
+
+# ---------- Riwayat dan detail pesanan ----------
+@app.route('/pesanan')
+@login_required
+def riwayat():
+    batalkan_kedaluwarsa()
+    cur = mysql.connection.cursor()
+    cur.execute(
+        "SELECT p.id, p.dibuat_pada, p.total, p.status, "
+        "(SELECT COALESCE(SUM(jumlah), 0) FROM detail_pesanan d WHERE d.pesanan_id = p.id) "
+        "FROM pesanan p WHERE p.user_id=%s ORDER BY p.id DESC LIMIT 100", (session['user_id'],)
+    )
+    daftar = cur.fetchall()
+    cur.close()
+    return render_template('pesanan_riwayat.html', daftar=daftar)
+
+
+@app.route('/pesanan/<int:id>')
+@login_required
+def pesanan_detail(id):
+    batalkan_kedaluwarsa()
+    cur = mysql.connection.cursor()
+    cur.execute(
+        "SELECT id, total, status, bukti_bayar, catatan_admin, dibuat_pada, diverifikasi_pada "
+        "FROM pesanan WHERE id=%s AND user_id=%s", (id, session['user_id'])
+    )
+    p = cur.fetchone()
+    if not p:
+        cur.close()
+        flash('Pesanan tidak ditemukan.', 'danger')
+        return redirect(url_for('riwayat'))
+    cur.execute("SELECT nama_produk, harga, jumlah FROM detail_pesanan WHERE pesanan_id=%s", (id,))
+    items = cur.fetchall()
+    cur.close()
+
+    batas = p[5] + timedelta(hours=PESANAN_KEDALUWARSA_JAM)
+    return render_template('pesanan_detail.html', p=p, items=items, bank=BANK, batas=batas,
+                           baru=request.args.get('baru') == '1')
+
+
+def simpan_bukti(file):
+    """Menyimpan bukti transfer (gambar atau PDF) ke uploads/bukti dengan nama acak."""
+    if not file or not file.filename:
+        return None, 'Pilih file bukti pembayaran dulu.'
+    header = file.stream.read(16)
+    file.stream.seek(0)
+    tipe = deteksi_tipe(header)
+    if not tipe and header.startswith(b'%PDF-'):
+        tipe = 'pdf'
+    if not tipe:
+        return None, 'Bukti harus berupa gambar (JPG, PNG, WEBP, GIF) atau PDF.'
+    nama = secrets.token_hex(12) + '.' + tipe
+    file.save(os.path.join(BUKTI_DIR, nama))
+    return nama, None
+
+
+def hapus_bukti(nama):
+    if not nama or not BUKTI_RE.match(nama):
+        return
+    path = os.path.abspath(os.path.join(BUKTI_DIR, nama))
+    if os.path.dirname(path) != BUKTI_DIR:
+        return
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+
+
+@app.route('/pesanan/<int:id>/bukti', methods=['POST'])
+@login_required
+def pesanan_bukti(id):
+    uid = session['user_id']
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT status, bukti_bayar FROM pesanan WHERE id=%s AND user_id=%s", (id, uid))
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        flash('Pesanan tidak ditemukan.', 'danger')
+        return redirect(url_for('riwayat'))
+    if row[0] not in ('menunggu_pembayaran', 'menunggu_verifikasi'):
+        cur.close()
+        flash('Bukti pembayaran tidak bisa diunggah untuk pesanan ini.', 'danger')
+        return redirect(url_for('pesanan_detail', id=id))
+
+    nama, error = simpan_bukti(request.files.get('bukti'))
+    if error:
+        cur.close()
+        flash(error, 'danger')
+        return redirect(url_for('pesanan_detail', id=id))
+
+    cur.execute(
+        "UPDATE pesanan SET bukti_bayar=%s, status='menunggu_verifikasi' "
+        "WHERE id=%s AND user_id=%s AND status IN ('menunggu_pembayaran','menunggu_verifikasi')",
+        (nama, id, uid)
+    )
+    berhasil = cur.rowcount == 1
+    mysql.connection.commit()
+    cur.close()
+
+    if berhasil:
+        hapus_bukti(row[1])        # bukti lama diganti
+        catat('bukti_diunggah', username=session.get('username'), pesanan=id)
+        flash('Bukti pembayaran terkirim. Admin akan memeriksanya.', 'success')
+    else:
+        hapus_bukti(nama)
+        flash('Pesanan ini sudah tidak bisa menerima bukti pembayaran.', 'danger')
+    return redirect(url_for('pesanan_detail', id=id))
+
+
+@app.route('/pesanan/<int:id>/batal', methods=['POST'])
+@login_required
+def pesanan_batal(id):
+    cur = mysql.connection.cursor()
+    berhasil = _batalkan(cur, id, 'Dibatalkan oleh pelanggan', user_id=session['user_id'])
+    mysql.connection.commit()
+    cur.close()
+    if berhasil:
+        catat('pesanan_dibatalkan', username=session.get('username'), pesanan=id)
+        flash('Pesanan dibatalkan.', 'success')
+    else:
+        flash('Pesanan ini tidak bisa dibatalkan.', 'danger')
+    return redirect(url_for('pesanan_detail', id=id))
+
+
+@app.route('/bukti/<nama>')
+@login_required
+def bukti_file(nama):
+    """Bukti bayar hanya bisa dilihat pemilik pesanan atau admin."""
+    if not BUKTI_RE.match(nama):
+        abort(404)
+    if session.get('role') != 'admin':
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT 1 FROM pesanan WHERE bukti_bayar=%s AND user_id=%s", (nama, session['user_id']))
+        milik_sendiri = cur.fetchone() is not None
+        cur.close()
+        if not milik_sendiri:
+            abort(404)
+    return send_from_directory(BUKTI_DIR, nama)
+
+def cocok_password(tersimpan, masukan):
+    if tersimpan and tersimpan.startswith(('scrypt:', 'pbkdf2:')):
+        return check_password_hash(tersimpan, masukan)
+    return hmac.compare_digest((tersimpan or '').encode('utf-8'), masukan.encode('utf-8'))
+
+
+def validasi_profil(form):
+    alamat = form.get('alamat', '').strip()
+    negara = form.get('negara', '').strip()
+    telepon = re.sub(r'[\s\-().]', '', form.get('telepon', ''))
+    tanggal_lahir = form.get('tanggal_lahir', '').strip()
+
+    if not 5 <= len(alamat) <= 255:
+        return None, 'Alamat harus 5-255 karakter.'
+    if not NEGARA_RE.match(negara):
+        return None, 'Nama negara tidak valid.'
+    if not TELEPON_RE.match(telepon):
+        return None, 'Nomor telepon harus 8-15 angka (boleh diawali +).'
+    try:
+        tgl = date.fromisoformat(tanggal_lahir)
+    except ValueError:
+        return None, 'Tanggal lahir tidak valid.'
+    if tgl > date.today():
+        return None, 'Tanggal lahir tidak boleh dari masa depan.'
+    if tgl.year < 1900:
+        return None, 'Tanggal lahir tidak valid.'
+    return (alamat, negara, telepon, tgl), None
+
+
+@app.route('/profil', methods=['GET', 'POST'])
+@login_required
+def profil():
+    uid = session['user_id']
+
+    if request.method == 'POST':
+        aksi = request.form.get('aksi')
+
+        if aksi == 'data':
+            data, error = validasi_profil(request.form)
+            if error:
+                flash(error, 'danger')
+            else:
+                cur = mysql.connection.cursor()
+                cur.execute("UPDATE users SET alamat=%s, negara=%s, telepon=%s, tanggal_lahir=%s WHERE id=%s",
+                            data + (uid,))
+                mysql.connection.commit()
+                cur.close()
+                catat('profil_diubah', username=session.get('username'))
+                flash('Profil diperbarui.', 'success')
+                return redirect(url_for('profil'))
+
+        elif aksi == 'password':
+            lama = request.form.get('password_lama', '')
+            baru = request.form.get('password_baru', '')
+            ulang = request.form.get('password_ulang', '')
+
+            cur = mysql.connection.cursor()
+            cur.execute("SELECT password FROM users WHERE id=%s", (uid,))
+            tersimpan = cur.fetchone()[0]
+
+            if not cocok_password(tersimpan, lama):
+                cur.close()
+                catat('ganti_password_gagal', username=session.get('username'))
+                flash('Password lama salah.', 'danger')
+            elif not 8 <= len(baru) <= 128:
+                cur.close()
+                flash('Password baru minimal 8 karakter.', 'danger')
+            elif baru != ulang:
+                cur.close()
+                flash('Konfirmasi password baru tidak sama.', 'danger')
+            elif baru == lama:
+                cur.close()
+                flash('Password baru harus berbeda dari yang lama.', 'danger')
+            else:
+                cur.execute("UPDATE users SET password=%s WHERE id=%s", (generate_password_hash(baru), uid))
+                mysql.connection.commit()
+                cur.close()
+                catat('password_diubah', username=session.get('username'))
+                flash('Password berhasil diubah.', 'success')
+                return redirect(url_for('profil'))
+
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT username, email, alamat, negara, telepon, tanggal_lahir FROM users WHERE id=%s", (uid,))
+    u = cur.fetchone()
+    cur.close()
+    return render_template('profil.html', u=u, form=request.form, hari_ini=date.today().isoformat())
 
 
 if __name__ == '__main__':

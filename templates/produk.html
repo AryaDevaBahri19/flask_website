@@ -1,0 +1,62 @@
+{% extends 'toko_base.html' %}
+{% block judul %}{{ p[1] }}{% endblock %}
+
+{% block isi %}
+<p><a href="{{ url_for('home') }}">&larr; Kembali ke toko</a></p>
+
+<div class="detail">
+    <div class="gambar">
+        {% if p[4] %}<img src="{{ url_for('static', filename='img/' ~ p[4]) }}" alt="{{ p[1] }}">{% endif %}
+    </div>
+    <div>
+        <span class="kat">{{ p[6] | kategori_label }}</span>
+        <h1>{{ p[1] }}</h1>
+        <div class="rating">
+            {% if jumlah %}<b>★</b> {{ '%.1f' | format(rata) }} <span>({{ jumlah }} ulasan)</span>
+            {% else %}<span>Belum ada ulasan</span>{% endif %}
+        </div>
+        <div class="price">{{ p[3] | rupiah }}</div>
+        <p>{{ p[2] or '' }}</p>
+        <div class="stok">{% if p[5] > 0 %}Stok: {{ p[5] }}{% else %}Stok habis{% endif %}</div>
+        <button class="add" type="button" data-id="{{ p[0] }}" data-name="{{ p[1] }}" data-price="{{ p[3] }}"
+            data-img="{{ url_for('static', filename='img/' ~ p[4]) if p[4] else '' }}" data-stok="{{ p[5] }}"
+            {% if p[5] < 1 %}disabled{% endif %}>
+            {{ 'Stok habis' if p[5] < 1 else 'Tambah ke keranjang' }}
+        </button>
+    </div>
+</div>
+
+<h2>Ulasan</h2>
+
+{% if boleh_review %}
+<form class="box form" method="post" action="{{ url_for('produk_review', id=p[0]) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h3>{{ 'Ubah ulasanmu' if ulasan_saya else 'Tulis ulasan' }}</h3>
+    <label>Rating
+        <select name="rating" required>
+            {% for n in [5, 4, 3, 2, 1] %}
+            <option value="{{ n }}" {% if ulasan_saya and ulasan_saya[0] == n %}selected{% endif %}>{{ '★' * n }}{{ '☆' * (5 - n) }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Komentar (opsional)
+        <textarea name="komentar" rows="3" maxlength="500">{{ ulasan_saya[1] if ulasan_saya and ulasan_saya[1] else '' }}</textarea>
+    </label>
+    <button class="add" type="submit">Kirim ulasan</button>
+</form>
+{% else %}
+<p class="muted">Ulasan bisa ditulis setelah kamu membeli produk ini dan pembayarannya disetujui.</p>
+{% endif %}
+
+<div class="ulasan">
+    {% for u in ulasan %}
+    <div class="box">
+        <b>{{ u[0] }}</b> <span class="bintang">{{ '★' * u[1] }}{{ '☆' * (5 - u[1]) }}</span>
+        <span class="muted">{{ u[3] | tanggal('%d-%m-%Y') }}</span>
+        {% if u[2] %}<p>{{ u[2] }}</p>{% endif %}
+    </div>
+    {% else %}
+    <p class="muted">Belum ada ulasan untuk produk ini.</p>
+    {% endfor %}
+</div>
+{% endblock %}

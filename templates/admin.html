@@ -12,6 +12,7 @@
                 <th>ID</th>
                 <th>Gambar</th>
                 <th>Nama</th>
+                <th>Kategori</th>
                 <th class="num">Harga</th>
                 <th class="num">Stok</th>
                 <th>Aksi</th>
@@ -23,6 +24,7 @@
                 <td>{{ p[0] }}</td>
                 <td>{% if p[4] %}<img class="thumb" src="{{ url_for('static', filename='img/' ~ p[4]) }}" alt="{{ p[1] }}">{% else %}-{% endif %}</td>
                 <td>{{ p[1] }}</td>
+                <td>{{ p[6] | kategori_label }}</td>
                 <td class="num">{{ p[3] | rupiah }}</td>
                 <td class="num">{{ p[5] }}</td>
                 <td>
@@ -38,7 +40,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="6" class="kosong">Belum ada produk. Klik "Tambah produk" untuk mulai.</td>
+                <td colspan="7" class="kosong">Belum ada produk. Klik "Tambah produk" untuk mulai.</td>
             </tr>
             {% endfor %}
         </tbody>

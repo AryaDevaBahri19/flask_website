@@ -1,0 +1,52 @@
+{% extends 'toko_base.html' %}
+{% block judul %}Profil{% endblock %}
+
+{% block isi %}
+<div class="head"><h1>Profil saya</h1></div>
+
+<div class="grid2">
+    <form class="box form" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="aksi" value="data">
+        <h3>Data pribadi</h3>
+        <label>Username
+            <input type="text" value="{{ u[0] }}" disabled>
+        </label>
+        <label>Email
+            <input type="email" value="{{ u[1] or '' }}" disabled>
+        </label>
+        <label>Alamat
+            <input type="text" name="alamat" value="{{ form.get('alamat', u[2] or '') }}" maxlength="255" required>
+        </label>
+        <label>Negara
+            <input type="text" name="negara" value="{{ form.get('negara', u[3] or '') }}" maxlength="60" required>
+        </label>
+        <label>Nomor telepon
+            <input type="tel" name="telepon" value="{{ form.get('telepon', u[4] or '') }}" maxlength="20" required>
+        </label>
+        <label>Tanggal lahir
+            <input type="date" name="tanggal_lahir"
+                value="{{ form.get('tanggal_lahir', u[5].isoformat() if u[5] else '') }}"
+                min="1900-01-01" max="{{ hari_ini }}" required>
+        </label>
+        <button class="add" type="submit">Simpan perubahan</button>
+        <p class="muted">Username dan email tidak bisa diubah di sini.</p>
+    </form>
+
+    <form class="box form" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="aksi" value="password">
+        <h3>Ganti password</h3>
+        <label>Password lama
+            <input type="password" name="password_lama" autocomplete="current-password" required>
+        </label>
+        <label>Password baru (minimal 8 karakter)
+            <input type="password" name="password_baru" minlength="8" maxlength="128" autocomplete="new-password" required>
+        </label>
+        <label>Ulangi password baru
+            <input type="password" name="password_ulang" minlength="8" maxlength="128" autocomplete="new-password" required>
+        </label>
+        <button class="add" type="submit">Ganti password</button>
+    </form>
+</div>
+{% endblock %}

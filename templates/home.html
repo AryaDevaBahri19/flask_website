@@ -1,113 +1,58 @@
-<!DOCTYPE html>
-<html lang="id">
+{% extends 'toko_base.html' %}
+{% block judul %}Toko{% endblock %}
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Squishly – Toko Boneka</title>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
-</head>
+{% block isi %}
+<div class="head">
+    <h1>Koleksi Boneka</h1>
+    <p class="sub">Boneka empuk dan lucu, siap jadi teman peluk.</p>
+</div>
 
-<body>
-    <div class="wrap">
-        <header>
-            <span class="logo">Squishly</span>
-            <button class="cartbtn" id="openCart" aria-label="Buka keranjang">Keranjang <b id="count">0</b></button>
-        </header>
-        <div class="head">
-            <h1>Koleksi Boneka</h1>
-            <p class="sub">Boneka empuk dan lucu, siap jadi teman peluk.</p>
+<form class="toolbar" method="get" action="{{ url_for('home') }}">
+    <input type="hidden" name="kategori" value="{{ kategori }}">
+    <input type="search" name="q" value="{{ q }}" placeholder="Cari boneka..." maxlength="50" aria-label="Cari">
+    <select name="urut" aria-label="Urutkan">
+        <option value="terbaru" {% if urut == 'terbaru' %}selected{% endif %}>Terbaru</option>
+        <option value="termurah" {% if urut == 'termurah' %}selected{% endif %}>Harga terendah</option>
+        <option value="termahal" {% if urut == 'termahal' %}selected{% endif %}>Harga tertinggi</option>
+        <option value="rating" {% if urut == 'rating' %}selected{% endif %}>Rating tertinggi</option>
+    </select>
+    <button class="add" type="submit">Cari</button>
+</form>
+
+<nav class="cats" aria-label="Kategori">
+    <a href="{{ url_for('home', q=q or None, urut=urut if urut != 'terbaru' else None) }}"
+        class="{{ 'on' if not kategori }}">Semua</a>
+    {% for kode, label in KATEGORI.items() %}
+    <a href="{{ url_for('home', kategori=kode, q=q or None, urut=urut if urut != 'terbaru' else None) }}"
+        class="{{ 'on' if kategori == kode }}">{{ label }}</a>
+    {% endfor %}
+</nav>
+
+<div class="grid">
+    {% for p in produk %}
+    <article class="card">
+        <a class="pic" href="{{ url_for('produk_detail', id=p[0]) }}">
+            {% if p[4] %}<img src="{{ url_for('static', filename='img/' ~ p[4]) }}" alt="{{ p[1] }}">{% endif %}
+        </a>
+        <div class="body">
+            <span class="kat">{{ p[6] | kategori_label }}</span>
+            <h3><a href="{{ url_for('produk_detail', id=p[0]) }}">{{ p[1] }}</a></h3>
+            <p class="desc">{{ p[2] or '' }}</p>
+            <div class="rating">
+                {% if p[8] %}<b>★</b> {{ '%.1f' | format(p[7] | float) }} <span>({{ p[8] }} ulasan)</span>
+                {% else %}<span>Belum ada ulasan</span>{% endif %}
+            </div>
+            <div class="price">{{ p[3] | rupiah }}</div>
+            <div class="stok">{% if p[5] > 0 %}Stok: {{ p[5] }}{% else %}Stok habis{% endif %}</div>
+            <button class="add" type="button" data-id="{{ p[0] }}" data-name="{{ p[1] }}" data-price="{{ p[3] }}"
+                data-img="{{ url_for('static', filename='img/' ~ p[4]) if p[4] else '' }}" data-stok="{{ p[5] }}"
+                {% if p[5] < 1 %}disabled{% endif %}>
+                {{ 'Stok habis' if p[5] < 1 else 'Tambah ke keranjang' }}
+            </button>
         </div>
-        <div class="grid" id="grid"></div>
-        <footer>Squishly adalah toko contoh. Tidak ada pesanan yang diproses.</footer>
-    </div>
-
-    <div class="shade" id="shade"></div>
-    <aside class="drawer" id="drawer" aria-label="Keranjang">
-        <div class="dh">
-            <h2>Keranjang kamu</h2><button class="x" id="closeCart" aria-label="Tutup keranjang">×</button>
-        </div>
-        <div class="items" id="items"></div>
-        <div class="tot"><span>Total</span><span id="total">Rp 0</span></div>
-        <button class="cta" id="checkout">Bayar</button>
-    </aside>
-    <div class="toast" id="toast" role="status"></div>
-
-    <script>
-        const P = {{ produk | tojson }};
-
-        const fmt = n => 'Rp ' + n.toLocaleString('id-ID');
-        const $ = id => document.getElementById(id);
-        let cart = [];
-
-        const toast = m => {
-            const t = $('toast');
-            t.textContent = m;
-            t.classList.add('on');
-            clearTimeout(toast.t);
-            toast.t = setTimeout(() => t.classList.remove('on'), 1800);
-        };
-
-        function render() {
-            $('count').textContent = cart.reduce((a, i) => a + i.q, 0);
-            $('items').innerHTML = cart.length
-                ? cart.map((i, k) => {
-                    const p = P.find(x => x.id === i.id);
-                    return `<div class="it">
-                        <div class="th"><img src="${p.img}" alt="${p.name}"></div>
-                        <div class="m">${p.name}<small>${fmt(p.price)}</small></div>
-                        <div class="q">
-                            <button data-k="${k}" data-d="-1" aria-label="Kurangi">−</button>${i.q}<button data-k="${k}" data-d="1" aria-label="Tambah">+</button>
-                        </div>
-                    </div>`;
-                }).join('')
-                : '<p class="empty">Keranjang masih kosong. Tambahkan boneka untuk mulai.</p>';
-            $('total').textContent = fmt(cart.reduce((a, i) => a + P.find(x => x.id === i.id).price * i.q, 0));
-        }
-
-        $('grid').innerHTML = P.length
-            ? P.map(p => `<article class="card">
-                <div class="pic"><img src="${p.img}" alt="${p.name}"></div>
-                <div class="body">
-                    <h3>${p.name}</h3>
-                    <p class="desc">${p.desc || ''}</p>
-                    <div class="price">${fmt(p.price)}</div>
-                    <div class="stok">Stok: ${p.stok}</div>
-                    <button class="add" data-id="${p.id}">Tambah ke keranjang</button>
-                </div>
-            </article>`).join('')
-            : '<p class="empty">Belum ada produk.</p>';
-
-        $('grid').onclick = e => {
-            const b = e.target.closest('.add');
-            if (!b) return;
-            const f = cart.find(i => i.id === b.dataset.id);
-            f ? f.q++ : cart.push({ id: b.dataset.id, q: 1 });
-            render();
-            toast('Ditambahkan ke keranjang');
-        };
-
-        $('items').onclick = e => {
-            const b = e.target.closest('button');
-            if (!b) return;
-            const i = cart[+b.dataset.k];
-            i.q += +b.dataset.d;
-            if (i.q < 1) cart.splice(+b.dataset.k, 1);
-            render();
-        };
-
-        const open = v => document.body.classList.toggle('open', v);
-        $('openCart').onclick = () => open(true);
-        $('closeCart').onclick = () => open(false);
-        $('shade').onclick = () => open(false);
-        $('checkout').onclick = () => toast(cart.length ? 'Ini hanya contoh, tidak ada pesanan yang dibuat' : 'Tambahkan boneka dulu');
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') open(false); });
-
-        render();
-    </script>
-</body>
-
-</html>
+    </article>
+    {% else %}
+    <p class="empty">Tidak ada produk yang cocok dengan pencarianmu.</p>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+<div class="shade" id="shade"></div>
+<aside class="drawer" id="drawer" aria-label="Keranjang">
+    <div class="dh">
+        <h2>Keranjang kamu</h2><button class="x" id="closeCart" aria-label="Tutup keranjang">×</button>
+    </div>
+    <div class="items" id="items"></div>
+    <div class="tot"><span>Total</span><span id="total">Rp 0</span></div>
+    <form method="post" action="{{ url_for('checkout') }}" id="formCheckout">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="items" id="itemsInput">
+        <button class="cta" id="checkout" type="submit">Checkout</button>
+    </form>
+    <p class="catatan">Harga dan stok dicek ulang oleh server saat checkout.</p>
+</aside>
+<div class="toast" id="toast" role="status"></div>

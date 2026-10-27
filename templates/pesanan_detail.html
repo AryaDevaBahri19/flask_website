@@ -1,0 +1,91 @@
+{% extends 'toko_base.html' %}
+{% block judul %}Pesanan #{{ p[0] }}{% endblock %}
+{% block script_awal %}<script>window.CLEAR_CART = {{ 'true' if baru else 'false' }};</script>{% endblock %}
+
+{% block isi %}
+<p><a href="{{ url_for('riwayat') }}">&larr; Semua pesanan</a></p>
+<div class="head">
+    <h1>Pesanan #{{ p[0] }} <span class="badge {{ p[2] }}">{{ p[2] | status_label }}</span></h1>
+    <p class="sub">Dibuat {{ p[5] | tanggal }}</p>
+</div>
+
+{% if p[2] == 'menunggu_pembayaran' %}
+<div class="box">
+    <h3>Instruksi pembayaran</h3>
+    <p>Transfer tepat <b>{{ p[1] | rupiah }}</b> ke:</p>
+    <dl>
+        <dt>Bank</dt><dd>{{ bank.nama }}</dd>
+        <dt>No. rekening</dt><dd>{{ bank.rekening }}</dd>
+        <dt>Atas nama</dt><dd>{{ bank.atas_nama }}</dd>
+        <dt>Batas bayar</dt><dd>{{ batas | tanggal }}</dd>
+    </dl>
+    <p class="muted">Setelah transfer, unggah bukti pembayaran di bawah. Pesanan yang belum dibayar sampai batas waktu dibatalkan otomatis dan stoknya dikembalikan.</p>
+</div>
+{% elif p[2] == 'menunggu_verifikasi' %}
+<div class="box"><p>Bukti pembayaran sudah terkirim. Admin sedang memeriksanya.</p></div>
+{% elif p[2] == 'disetujui' %}
+<div class="box"><p>Pembayaran disetujui{% if p[6] %} pada {{ p[6] | tanggal }}{% endif %}. Terima kasih sudah berbelanja! Kamu sekarang bisa menulis ulasan di halaman produk.</p></div>
+{% elif p[2] == 'ditolak' %}
+<div class="box"><p><b>Pembayaran ditolak.</b> Alasan: {{ p[4] or '-' }}</p>
+    <p class="muted">Stok sudah dikembalikan. Silakan buat pesanan baru.</p></div>
+{% elif p[2] == 'dibatalkan' %}
+<div class="box"><p><b>Pesanan dibatalkan.</b> {{ p[4] or '' }}</p></div>
+{% endif %}
+
+<h3>Isi pesanan</h3>
+<div class="scroll">
+    <table>
+        <thead>
+            <tr>
+                <th>Produk</th>
+                <th class="num">Harga</th>
+                <th class="num">Jumlah</th>
+                <th class="num">Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for i in items %}
+            <tr>
+                <td>{{ i[0] }}</td>
+                <td class="num">{{ i[1] | rupiah }}</td>
+                <td class="num">{{ i[2] }}</td>
+                <td class="num">{{ (i[1] * i[2]) | rupiah }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td colspan="3" class="num"><b>Total</b></td>
+                <td class="num"><b>{{ p[1] | rupiah }}</b></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+{% if p[3] %}
+<h3>Bukti pembayaran</h3>
+<div class="box">
+    {% if p[3].lower().endswith('.pdf') %}
+    <a class="add small" href="{{ url_for('bukti_file', nama=p[3]) }}" target="_blank" rel="noopener">Buka file PDF</a>
+    {% else %}
+    <img class="bukti" src="{{ url_for('bukti_file', nama=p[3]) }}" alt="Bukti pembayaran">
+    {% endif %}
+</div>
+{% endif %}
+
+{% if p[2] in ('menunggu_pembayaran', 'menunggu_verifikasi') %}
+<h3>{{ 'Ganti bukti pembayaran' if p[3] else 'Unggah bukti pembayaran' }}</h3>
+<form class="box form" method="post" action="{{ url_for('pesanan_bukti', id=p[0]) }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="file" name="bukti" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" required>
+    <p class="muted">JPG, PNG, WEBP, GIF, atau PDF. Maksimal 5 MB.</p>
+    <button class="add" type="submit">Kirim bukti</button>
+</form>
+{% endif %}
+
+{% if p[2] == 'menunggu_pembayaran' %}
+<form method="post" action="{{ url_for('pesanan_batal', id=p[0]) }}" style="margin-top:16px"
+    onsubmit="return confirm('Batalkan pesanan #{{ p[0] }}?')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="add danger" type="submit">Batalkan pesanan</button>
+</form>
+{% endif %}
+{% endblock %}

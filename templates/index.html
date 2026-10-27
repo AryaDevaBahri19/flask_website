@@ -31,7 +31,6 @@
         {% endif %}
         {% endwith %}
 
-        <!-- FORM LOGIN -->
         <form method="POST" id="formLogin" {% if mode != 'login' %}hidden{% endif %}>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="username" placeholder="Username" required>
@@ -42,7 +41,6 @@
             <p class="switch">Belum punya akun? <a onclick="ganti('register')">Daftar di sini</a></p>
         </form>
 
-        <!-- FORM REGISTER -->
         <form method="POST" id="formRegister" {% if mode != 'register' %}hidden{% endif %}>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="username" placeholder="Username" value="{{ form.get('username', '') }}"

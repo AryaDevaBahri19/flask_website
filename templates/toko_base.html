@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>{% block judul %}Toko{% endblock %} – Squishly</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='toko.css') }}">
+</head>
+
+<body>
+    <div class="wrap">
+        <header>
+            <a class="logo" href="{{ url_for('home') }}">Squishly</a>
+            <nav class="navlinks">
+                <a href="{{ url_for('home') }}">Toko</a>
+                <a href="{{ url_for('riwayat') }}">Pesanan saya</a>
+                <a href="{{ url_for('profil') }}">Profil</a>
+                {% if session.get('role') == 'admin' %}<a href="{{ url_for('admin') }}">Admin</a>{% endif %}
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </nav>
+            <button class="cartbtn" id="openCart" aria-label="Buka keranjang">Keranjang <b id="count">0</b></button>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for kategori, pesan in messages %}
+        <div class="flash {{ kategori }}">{{ pesan }}</div>
+        {% endfor %}
+        {% endwith %}
+
+        {% block isi %}{% endblock %}
+
+        <footer>Squishly adalah toko contoh.</footer>
+    </div>
+
+    {% include '_keranjang.html' %}
+
+    <script>window.CART_KEY = 'cart_{{ session.get("user_id", "anon") }}';</script>
+    {% block script_awal %}{% endblock %}
+    <script src="{{ url_for('static', filename='cart.js') }}"></script>
+</body>
+
+</html>

@@ -1,0 +1,37 @@
+{% extends 'toko_base.html' %}
+{% block judul %}Pesanan saya{% endblock %}
+
+{% block isi %}
+<div class="head"><h1>Pesanan saya</h1></div>
+
+<div class="scroll">
+    <table>
+        <thead>
+            <tr>
+                <th>No. Pesanan</th>
+                <th>Tanggal</th>
+                <th class="num">Barang</th>
+                <th class="num">Total</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in daftar %}
+            <tr>
+                <td>#{{ p[0] }}</td>
+                <td>{{ p[1] | tanggal }}</td>
+                <td class="num">{{ p[4] | int }}</td>
+                <td class="num">{{ p[2] | rupiah }}</td>
+                <td><span class="badge {{ p[3] }}">{{ p[3] | status_label }}</span></td>
+                <td><a class="add small" href="{{ url_for('pesanan_detail', id=p[0]) }}">Lihat</a></td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="kosong">Kamu belum punya pesanan. <a href="{{ url_for('home') }}">Mulai belanja</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
