@@ -10,7 +10,7 @@ body {
 }
 
 .wrap {
-    max-width: 1000px;
+    max-width: 1050px;
     margin: 0 auto;
     padding: 20px;
 }
@@ -21,18 +21,55 @@ header {
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
-    margin-bottom: 20px;
 }
 
 h1 {
     margin: 0;
-    font-size: 26px;
+    font-size: 24px;
+    color: #1e6fff;
 }
 
-.nav {
+h2 {
+    font-size: 22px;
+    margin: 18px 0 12px;
+}
+
+h3 {
+    font-size: 17px;
+    margin: 20px 0 8px;
+}
+
+a {
+    color: #1e6fff;
+}
+
+.user {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
+    font-size: 14px;
+}
+
+.tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 16px 0 0;
+    border-bottom: 2px solid #d6e5fb;
+}
+
+.tabs a {
+    padding: 10px 16px;
+    text-decoration: none;
+    color: #5b6f93;
+    font-weight: 700;
+    border-radius: 10px 10px 0 0;
+}
+
+.tabs a.on {
+    background: #1e6fff;
+    color: #fff;
 }
 
 .btn {
@@ -46,6 +83,9 @@ h1 {
     text-decoration: none;
     cursor: pointer;
     font-size: 14px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
 }
 
 .btn.gray {
@@ -56,14 +96,23 @@ h1 {
     background: #d93a4a;
 }
 
+.btn.green {
+    background: #1a9a5b;
+}
+
 .btn.small {
     padding: 6px 12px;
+}
+
+.btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
 }
 
 .flash {
     padding: 12px 16px;
     border-radius: 10px;
-    margin-bottom: 14px;
+    margin: 14px 0 0;
     font-weight: 600;
 }
 
@@ -87,14 +136,15 @@ h1 {
 table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 640px;
+    min-width: 620px;
 }
 
 th,
 td {
-    padding: 12px 14px;
+    padding: 11px 14px;
     text-align: left;
     border-bottom: 1px solid #d6e5fb;
+    vertical-align: middle;
 }
 
 th {
@@ -106,13 +156,29 @@ tr:last-child td {
     border-bottom: 0;
 }
 
+td.num,
+th.num {
+    text-align: right;
+}
+
+.kosong {
+    padding: 24px;
+    text-align: center;
+    color: #5b6f93;
+}
+
 .aksi {
     display: flex;
     gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 .aksi form {
     margin: 0;
+    display: flex;
+    gap: 6px;
+    align-items: center;
 }
 
 .thumb {
@@ -124,8 +190,144 @@ tr:last-child td {
     display: block;
 }
 
-.kosong {
-    padding: 24px;
-    text-align: center;
+.badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 13px;
+    font-weight: 700;
+    background: #e6edf7;
+    color: #44577a;
+}
+
+.badge.menunggu_verifikasi {
+    background: #fff0c2;
+    color: #7a5a00;
+}
+
+.badge.disetujui,
+.badge.aktif {
+    background: #d6f5e3;
+    color: #11643a;
+}
+
+.badge.ditolak,
+.badge.nonaktif {
+    background: #fde0e3;
+    color: #8c1d2a;
+}
+
+.badge.admin {
+    background: #dcebff;
+    color: #1e4fb0;
+}
+
+.filter {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: end;
+    margin-bottom: 14px;
+}
+
+.filter label {
+    font-size: 13px;
+    font-weight: 700;
+    display: grid;
+    gap: 4px;
+}
+
+input,
+select,
+textarea {
+    font: inherit;
+    padding: 8px 10px;
+    border: 2px solid #d6e5fb;
+    border-radius: 10px;
+    background: #fff;
+    color: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: 0;
+    border-color: #1e6fff;
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.card {
+    background: #fff;
+    border: 2px solid #d6e5fb;
+    border-radius: 16px;
+    padding: 14px 16px;
+}
+
+.card small {
     color: #5b6f93;
+    font-weight: 700;
+}
+
+.card b {
+    display: block;
+    font-size: 24px;
+    margin-top: 4px;
+}
+
+.box {
+    background: #fff;
+    border: 2px solid #d6e5fb;
+    border-radius: 16px;
+    padding: 16px;
+}
+
+dl {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 6px 12px;
+    margin: 0;
+}
+
+dt {
+    color: #5b6f93;
+    font-weight: 700;
+}
+
+dd {
+    margin: 0;
+    word-break: break-word;
+}
+
+.bukti {
+    max-width: 100%;
+    max-height: 420px;
+    border-radius: 12px;
+    border: 2px solid #d6e5fb;
+}
+
+.grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.muted {
+    color: #5b6f93;
+    font-size: 14px;
+}
+
+@media (max-width: 760px) {
+    .grid2 {
+        grid-template-columns: 1fr;
+    }
+
+    dl {
+        grid-template-columns: 1fr;
+    }
 }

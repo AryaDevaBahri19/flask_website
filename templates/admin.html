@@ -1,72 +1,47 @@
-<!DOCTYPE html>
-<html lang="id">
+{% extends 'admin_base.html' %}
+{% block judul %}Produk{% endblock %}
+{% block heading %}Kelola Produk{% endblock %}
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Admin – Squishly</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
-</head>
+{% block isi %}
+<p><a class="btn" href="{{ url_for('admin_tambah') }}">+ Tambah produk</a></p>
 
-<body>
-    <div class="wrap">
-        <header>
-            <h1>Kelola Produk</h1>
-            <div class="nav">
-                <span>Halo, {{ session.get('username') }}</span>
-                <a class="btn gray" href="{{ url_for('home') }}">Lihat toko</a>
-                <a class="btn gray" href="{{ url_for('logout') }}">Logout</a>
-            </div>
-        </header>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for kategori, pesan in messages %}
-        <div class="flash {{ kategori }}">{{ pesan }}</div>
-        {% endfor %}
-        {% endwith %}
-
-        <p><a class="btn" href="{{ url_for('admin_tambah') }}">+ Tambah produk</a></p>
-
-        <div class="scroll">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nama</th>
-                        <th>Harga</th>
-                        <th>Stok</th>
-                        <th>Gambar</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in daftar %}
-                    <tr>
-                        <td>{{ p[0] }}</td>
-                        <td>{{ p[1] }}</td>
-                        <td>Rp {{ "{:,}".format(p[3]).replace(",", ".") }}</td>
-                        <td>{{ p[5] }}</td>
-                        <td>{% if p[4] %}<img class="thumb" src="{{ url_for('static', filename='img/' ~ p[4]) }}" alt="{{ p[1] }}">{% else %}-{% endif %}</td>
-                        <td>
-                            <div class="aksi">
-                                <a class="btn small" href="{{ url_for('admin_edit', id=p[0]) }}">Edit</a>
-                                <form method="post" action="{{ url_for('admin_hapus', id=p[0]) }}"
-                                    onsubmit="return confirm('Hapus produk {{ p[1] }}?')">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button class="btn small red" type="submit">Hapus</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="kosong">Belum ada produk. Klik "Tambah produk" untuk mulai.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</body>
-
-</html>
+<div class="scroll">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Gambar</th>
+                <th>Nama</th>
+                <th class="num">Harga</th>
+                <th class="num">Stok</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in daftar %}
+            <tr>
+                <td>{{ p[0] }}</td>
+                <td>{% if p[4] %}<img class="thumb" src="{{ url_for('static', filename='img/' ~ p[4]) }}" alt="{{ p[1] }}">{% else %}-{% endif %}</td>
+                <td>{{ p[1] }}</td>
+                <td class="num">{{ p[3] | rupiah }}</td>
+                <td class="num">{{ p[5] }}</td>
+                <td>
+                    <div class="aksi">
+                        <a class="btn small" href="{{ url_for('admin_edit', id=p[0]) }}">Edit</a>
+                        <form method="post" action="{{ url_for('admin_hapus', id=p[0]) }}"
+                            onsubmit="return confirm('Hapus produk {{ p[1] }}?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn small red" type="submit">Hapus</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="kosong">Belum ada produk. Klik "Tambah produk" untuk mulai.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

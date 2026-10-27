@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block judul %}Admin{% endblock %} – Squishly</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+
+<body>
+    {% set ep = request.endpoint or '' %}
+    <div class="wrap">
+        <header>
+            <h1>Squishly Admin</h1>
+            <div class="user">
+                <span>Halo, {{ session.get('username') }}</span>
+                <a class="btn gray small" href="{{ url_for('home') }}">Lihat toko</a>
+                <a class="btn gray small" href="{{ url_for('logout') }}">Logout</a>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <a href="{{ url_for('admin') }}" class="{{ 'on' if ep in ('admin', 'admin_tambah', 'admin_edit') }}">Produk</a>
+            <a href="{{ url_for('admin_pesanan') }}" class="{{ 'on' if ep.startswith('admin_pesanan') }}">Pesanan</a>
+            <a href="{{ url_for('admin_laporan') }}" class="{{ 'on' if ep.startswith('admin_laporan') }}">Laporan</a>
+            <a href="{{ url_for('admin_pengguna') }}" class="{{ 'on' if ep.startswith('admin_pengguna') }}">Pengguna</a>
+        </nav>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for kategori, pesan in messages %}
+        <div class="flash {{ kategori }}">{{ pesan }}</div>
+        {% endfor %}
+        {% endwith %}
+
+        <h2>{% block heading %}{% endblock %}</h2>
+        {% block isi %}{% endblock %}
+    </div>
+</body>
+
+</html>

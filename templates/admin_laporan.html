@@ -1,0 +1,78 @@
+{% extends 'admin_base.html' %}
+{% block judul %}Laporan{% endblock %}
+{% block heading %}Laporan Transaksi{% endblock %}
+
+{% block isi %}
+<form class="filter" method="get">
+    <label>Dari
+        <input type="date" name="dari" value="{{ dari }}">
+    </label>
+    <label>Sampai
+        <input type="date" name="sampai" value="{{ sampai }}">
+    </label>
+    <button class="btn" type="submit">Tampilkan</button>
+    <a class="btn gray" href="{{ url_for('admin_laporan_csv', dari=dari, sampai=sampai) }}">Unduh CSV</a>
+</form>
+<p class="muted">Laporan dihitung berdasarkan tanggal pesanan dibuat. Pendapatan hanya menghitung pesanan yang sudah disetujui.</p>
+
+<div class="cards">
+    <div class="card"><small>Total pesanan</small><b>{{ ringkasan[0] }}</b></div>
+    <div class="card"><small>Disetujui</small><b>{{ ringkasan[1] | int }}</b></div>
+    <div class="card"><small>Menunggu verifikasi</small><b>{{ ringkasan[2] | int }}</b></div>
+    <div class="card"><small>Pendapatan</small><b>{{ ringkasan[3] | rupiah }}</b></div>
+</div>
+
+<h3>Per hari</h3>
+<div class="scroll">
+    <table>
+        <thead>
+            <tr>
+                <th>Tanggal</th>
+                <th class="num">Pesanan masuk</th>
+                <th class="num">Disetujui</th>
+                <th class="num">Pendapatan</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for h in harian %}
+            <tr>
+                <td>{{ h[0].strftime('%d-%m-%Y') }}</td>
+                <td class="num">{{ h[1] }}</td>
+                <td class="num">{{ h[2] | int }}</td>
+                <td class="num">{{ h[3] | rupiah }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="kosong">Tidak ada pesanan pada rentang tanggal ini.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<h3>Produk terlaris (pesanan disetujui)</h3>
+<div class="scroll">
+    <table>
+        <thead>
+            <tr>
+                <th>Produk</th>
+                <th class="num">Terjual</th>
+                <th class="num">Pendapatan</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in terlaris %}
+            <tr>
+                <td>{{ t[0] }}</td>
+                <td class="num">{{ t[1] | int }}</td>
+                <td class="num">{{ t[2] | rupiah }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" class="kosong">Belum ada penjualan yang disetujui.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

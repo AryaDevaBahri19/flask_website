@@ -1,0 +1,67 @@
+{% extends 'admin_base.html' %}
+{% block judul %}Pengguna{% endblock %}
+{% block heading %}Manajemen Pengguna{% endblock %}
+
+{% block isi %}
+<form class="filter" method="get">
+    <label>Cari username atau email
+        <input type="text" name="q" value="{{ q }}" maxlength="50" placeholder="contoh: budi">
+    </label>
+    <button class="btn" type="submit">Cari</button>
+    {% if q %}<a class="btn gray" href="{{ url_for('admin_pengguna') }}">Reset</a>{% endif %}
+</form>
+
+<div class="scroll">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Telepon</th>
+                <th>Negara</th>
+                <th>Role</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in daftar %}
+            {% set saya = (u[0] == session.get('user_id')) %}
+            <tr>
+                <td>{{ u[0] }}</td>
+                <td>{{ u[1] }}{% if saya %} <span class="muted">(kamu)</span>{% endif %}</td>
+                <td>{{ u[2] or '-' }}</td>
+                <td>{{ u[3] or '-' }}</td>
+                <td>{{ u[4] or '-' }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('admin_pengguna_role', id=u[0]) }}" class="aksi">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <select name="role" {% if saya %}disabled{% endif %}>
+                            <option value="user" {% if u[5] == 'user' %}selected{% endif %}>user</option>
+                            <option value="admin" {% if u[5] == 'admin' %}selected{% endif %}>admin</option>
+                        </select>
+                        <button class="btn small" type="submit" {% if saya %}disabled{% endif %}>Simpan</button>
+                    </form>
+                </td>
+                <td>
+                    <form method="post" action="{{ url_for('admin_pengguna_aktif', id=u[0]) }}" class="aksi"
+                        onsubmit="return confirm('{{ 'Nonaktifkan' if u[6] else 'Aktifkan' }} akun {{ u[1] }}?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="aktif" value="{{ 0 if u[6] else 1 }}">
+                        <span class="badge {{ 'aktif' if u[6] else 'nonaktif' }}">{{ 'Aktif' if u[6] else 'Nonaktif' }}</span>
+                        <button class="btn small {{ 'red' if u[6] else 'green' }}" type="submit" {% if saya %}disabled{% endif %}>
+                            {{ 'Nonaktifkan' if u[6] else 'Aktifkan' }}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="kosong">Tidak ada pengguna{% if q %} yang cocok dengan pencarian{% endif %}.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<p class="muted">Akun tidak dihapus, hanya dinonaktifkan, supaya riwayat pesanannya tetap utuh. Akun yang dinonaktifkan langsung tidak bisa dipakai, termasuk kalau sedang login.</p>
+{% endblock %}

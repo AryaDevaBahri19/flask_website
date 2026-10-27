@@ -1,0 +1,43 @@
+{% extends 'admin_base.html' %}
+{% block judul %}Pesanan{% endblock %}
+{% block heading %}Pesanan{% endblock %}
+
+{% block isi %}
+<div class="tabs" style="margin-top:0; margin-bottom:14px;">
+    <a href="{{ url_for('admin_pesanan') }}" class="{{ 'on' if not status }}">Semua</a>
+    {% for kode, label in daftar_status.items() %}
+    <a href="{{ url_for('admin_pesanan', status=kode) }}" class="{{ 'on' if status == kode }}">{{ label }} ({{ jumlah.get(kode, 0) }})</a>
+    {% endfor %}
+</div>
+
+<div class="scroll">
+    <table>
+        <thead>
+            <tr>
+                <th>No. Pesanan</th>
+                <th>Pelanggan</th>
+                <th>Tanggal</th>
+                <th class="num">Total</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in daftar %}
+            <tr>
+                <td>#{{ p[0] }}</td>
+                <td>{{ p[1] }}</td>
+                <td>{{ p[2] | tanggal }}</td>
+                <td class="num">{{ p[3] | rupiah }}</td>
+                <td><span class="badge {{ p[4] }}">{{ p[4] | status_label }}</span></td>
+                <td><a class="btn small" href="{{ url_for('admin_pesanan_detail', id=p[0]) }}">Detail</a></td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="kosong">Belum ada pesanan{% if status %} dengan status ini{% endif %}.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

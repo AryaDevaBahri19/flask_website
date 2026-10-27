@@ -1,0 +1,5 @@
+2026-10-27 13:57:05,866 squishly: event=login_berhasil ip=127.0.0.1 username="arya" role="admin"
+2026-10-27 14:00:09,168 squishly: event=login_gagal ip=127.0.0.1 username="arya"
+2026-10-27 14:00:14,244 squishly: event=login_berhasil ip=127.0.0.1 username="arya" role="admin"
+2026-10-27 14:03:52,600 squishly: event=admin_produk_hapus ip=127.0.0.1 admin="arya" id="9"
+2026-10-27 14:04:44,425 squishly: event=laporan_export ip=127.0.0.1 admin="arya" dari="2026-09-28" sampai="2026-10-27"

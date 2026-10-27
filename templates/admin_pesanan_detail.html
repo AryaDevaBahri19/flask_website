@@ -1,0 +1,86 @@
+{% extends 'admin_base.html' %}
+{% block judul %}Pesanan #{{ p[0] }}{% endblock %}
+{% block heading %}Pesanan #{{ p[0] }} <span class="badge {{ p[6] }}">{{ p[6] | status_label }}</span>{% endblock %}
+
+{% block isi %}
+<p><a href="{{ url_for('admin_pesanan') }}">&larr; Kembali ke daftar pesanan</a></p>
+
+<div class="grid2">
+    <div class="box">
+        <h3 style="margin-top:0">Pelanggan</h3>
+        <dl>
+            <dt>Username</dt><dd>{{ p[1] }}</dd>
+            <dt>Email</dt><dd>{{ p[2] or '-' }}</dd>
+            <dt>Telepon</dt><dd>{{ p[3] or '-' }}</dd>
+            <dt>Alamat</dt><dd>{{ p[4] or '-' }}</dd>
+            <dt>Dibuat</dt><dd>{{ p[9] | tanggal }}</dd>
+            <dt>Diverifikasi</dt><dd>{{ p[10] | tanggal }}</dd>
+            {% if p[8] %}<dt>Catatan admin</dt><dd>{{ p[8] }}</dd>{% endif %}
+        </dl>
+    </div>
+
+    <div class="box">
+        <h3 style="margin-top:0">Bukti pembayaran</h3>
+        {% if p[7] %}
+            {% if p[7].lower().endswith('.pdf') %}
+            <a class="btn" href="{{ url_for('admin_bukti', nama=p[7]) }}" target="_blank" rel="noopener">Buka file PDF</a>
+            {% else %}
+            <a href="{{ url_for('admin_bukti', nama=p[7]) }}" target="_blank" rel="noopener">
+                <img class="bukti" src="{{ url_for('admin_bukti', nama=p[7]) }}" alt="Bukti pembayaran pesanan {{ p[0] }}">
+            </a>
+            {% endif %}
+        {% else %}
+        <p class="muted">Pelanggan belum mengunggah bukti pembayaran.</p>
+        {% endif %}
+    </div>
+</div>
+
+<h3>Isi pesanan</h3>
+<div class="scroll">
+    <table>
+        <thead>
+            <tr>
+                <th>Produk</th>
+                <th class="num">Harga</th>
+                <th class="num">Jumlah</th>
+                <th class="num">Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for i in items %}
+            <tr>
+                <td>{{ i[0] }}</td>
+                <td class="num">{{ i[1] | rupiah }}</td>
+                <td class="num">{{ i[2] }}</td>
+                <td class="num">{{ (i[1] * i[2]) | rupiah }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td colspan="3" class="num"><b>Total</b></td>
+                <td class="num"><b>{{ p[5] | rupiah }}</b></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+{% if p[6] == 'menunggu_verifikasi' %}
+<h3>Verifikasi pembayaran</h3>
+{% if not p[7] %}
+<p class="muted">Belum ada bukti pembayaran. Pastikan pembayaran sudah kamu cek sebelum menyetujui.</p>
+{% endif %}
+<div class="box aksi" style="align-items:flex-start; gap:20px;">
+    <form method="post" action="{{ url_for('admin_pesanan_setujui', id=p[0]) }}"
+        onsubmit="return confirm('Setujui pembayaran pesanan #{{ p[0] }}?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn green" type="submit">Setujui pembayaran</button>
+    </form>
+
+    <form method="post" action="{{ url_for('admin_pesanan_tolak', id=p[0]) }}" style="flex:1; min-width:260px;"
+        onsubmit="return confirm('Tolak pembayaran pesanan #{{ p[0] }}? Stok akan dikembalikan.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="catatan" placeholder="Alasan penolakan (wajib)" maxlength="255" required style="flex:1; min-width:180px;">
+        <button class="btn red" type="submit">Tolak</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}
